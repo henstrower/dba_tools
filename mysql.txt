@@ -1,0 +1,339 @@
+-- TASKS DIARIAS
+Olhar backups de produção
+Olhar replicação SEI
+
+-- TASKS SEMANAIS
+Olhar backups de produção
+Teste de restore
+
+-- TASKS MENSAIS
+
+
+-- stop no 10.2.112.122 (múltiplas instâncias)
+mysqld_multi stop 1
+mysqld_multi stop 2
+mysqld_multi stop 3
+
+-- stop em todos
+mysqld stop
+
+-- atualizando mysql
+baixar o repo em https://dev.mysql.com/downloads/repo/yum/
+
+instalar o repo:
+rpm -ivh mysql-community-release-el6-5.noarch.rpm
+rpm -ivh mysql-community-release-el6-5.noarch.rpm
+
+saída para internet:
+export http_proxy=http://proxy.dpf.gov.br:3128
+export https_proxy=http://proxy.dpf.gov.br:3128
+
+checar o my.cnf:
+vim /etc/my.cnf
+skip-external-locking -- para a versão 5.5
+#table_cache = 64 -- para a versão 5.6
+
+alterar o enable para a versão de update:
+vim /etc/yum.repos.d/mysql-community.repo
+
+parar o banco:
+/etc/init.d/mysqld stop
+
+atualizar:
+yum update mysql-server
+
+parar o banco novamente:
+/etc/init.d/mysqld stop
+
+executar o mysql_upgrade com o mysqld_safe:
+mysqld_safe --datadir=/data/3306 --skip-grant-tables &
+mysql_upgrade
+if: 
+mysqlcheck: Got error: 1045: Access denied for user 'root'@'localhost' (using password: NO) when trying to connect
+FATAL ERROR: Error during call to mysql_check for fixing the db/tables names on all db(s) except mysql
+do: mysqld_safe --datadir=/data/3306 --skip-grant-tables &
+mysql_upgrade -uroot -pGandalf.2941
+ou
+mysql_upgrade --port=3306 --user=root --password=PASSWORD
+
+se erros, verificar:
+tail -100 /var/log/mysqld.log
+
+if:
+Error: Failed while fetching Server version! Could be due to unauthorized access. FATAL ERROR: Upgrade failed
+do:
+yum remove mysql-\*
+yum install mysql mysql-devel mysql-libs mysql-server
+/etc/init.d/mysqld stop
+mysqld_safe --datadir=/data/3306 --skip-grant-tables &
+mysql_upgrade
+
+if:
+root@SDF0157 3306]# mysql_upgrade
+Looking for 'mysql' as: mysql
+Looking for 'mysqlcheck' as: mysqlcheck
+Running 'mysqlcheck with default connection arguments
+Failed to ALTER DATABASE `#mysql50#.ssh` UPGRADE DATA DIRECTORY NAME
+Error: Incorrect database name '#mysql50#.ssh'
+Running 'mysqlcheck with default connection arguments
+mysqlcheck: Got error: 1102: Incorrect database name '#mysql50#.ssh' when selecting the database
+FATAL ERROR: Error during call to mysql_check for upgrading the tables names.
+do:
+ls -ltrah /var/lib/mysql e mova os ".<alguma_coisa>" para /tmp, pois o mysql n consegue resolver diretórios ".<alguma_coisa>".
+
+
+sair do safe:
+/etc/init.d/mysqld stop
+
+iniciar o banco:
+/etc/init.d/mysqld start
+/usr/bin/mysqld_multi --defaults-file=/etc/my.cnf start
+
+if:
+mysqld [fail]
+do:
+verificar [ERROR] em todos os logs do /etc/my.cnf
+
+conferir o processo:
+ps -ef | grep mysql
+
+-- alterar senha root quando não se sabe qual é
+# /etc/init.d/mysql stop
+# mysqld_safe --skip-grant-tables &
+# mysql -u root mysql
+mysql> use mysql; UPDATE user SET authentication_string=PASSWORD('root') WHERE User='root'; FLUSH PRIVILEGES;
+# /etc/init.d/mysql stop
+# /etc/init.d/mysql start
+
+-- alterar senha de root para versões mais recentes (5.7)
+# systemctl stop mysqld
+# systemctl set-environment MYSQLD_OPTS="--skip-grant-tables"
+# systemctl start mysqld
+mysql -u root
+mysql> ALTER USER 'root'@'localhost' IDENTIFIED BY 'MyNewPass';
+mysql> FLUSH PRIVILEGES;
+mysql> quit
+# systemctl stop mysqld
+# systemctl unset-environment MYSQLD_OPTS
+# systemctl start mysqld
+# mysql -u root -p
+
+-- verificar hostname
+select @@hostname;
+select VARIABLE_VALUE from information_schema.GLOBAL_VARIABLES where variable_name='HOSTNAME';
+
+-- verificar banco de dados-mysql/
+mysql -u root -p -sN -e "select schema_name from information_schema.schemata where schema_name not in ('information_schema','mysql','test','sys')"
+
+-- variável para ver erros de comando no banco
+show warnings
+
+-- desabilitar e habilitar constraints
+SET foreign_key_checks = 0;
+SET foreign_key_checks = 1;
+
+-- ver atividade do banco (locks aparecem no state)
+SHOW FULL PROCESSLIST;
+select * from information_schema.processlist;
+
+-- grant de root
+grant all privileges on *.* to 'usr' 
+
+-- Erro ao conceder grants: ERROR 1045 (28000): Access denied for user 'root'@'%' (using password: YES)
+[root]# mysql -u root -p
+mysql> use mysql
+mysql> update user set grant_priv = 'Y' where User='root';
+mysql> flush privileges;
+
+-- verificar grants
+select * from db; -- host, db, user, column grants
+select * from tables_priv; -- host, db, user, table_name, grantor, timestamp, table_priv, column_priv
+select * from user; -- host, user, password, column grants
+
+-- create user
+create user 'usr_wordpress_dev'@'%' identified by "Cidadania_123";
+GRANT ALL PRIVILEGES ON *.* TO 'usr_wordpress_dev'@'%';
+
+-- extrair create user dos usuários
+show create user <user>;
+
+-- extrair grant dos usuários
+show grants for <user>;
+
+-- configurar login path
+mysql_config_editor set --login-path=client --host=localhost --user=localuser --password
+
+-- ver config do login path
+mysql_config_editor print --all
+
+-- verificar log de acesso:
+select * from general_log where user_host like '%sistemaemprego%' and command_type = 'Connect';
+select * from general_log_backup where user_host like '%emprego%';
+select * from general_log_old where user_host like '%emprego%'-- and command_type = 'Connect' limit 10;
+
+-- verificar last_update tabela
+select * from innodb_table_stats where database_name = 'sistemaemprego';
+
+-- verificar queries lentas
+select * from slow_log order by query_time desc;
+
+-- análise de slow_queries
+cat /log/3307/log_slow_queries.log | egrep "# time: 150223 10:30:??" -a10000
+
+-- análise de slow_queries utilizando o mysql slow
+mysqldumpslow /log/3307/log_slow_queries.log > test.log
+
+-- comando para remover as linhas em que encontram-se os parâmetros root AMORSEUSR acop
+egrep -v "root|AMORSEUSR|acop" /home/test.log > test3.log
+
+-- Modo somente leitura:
+SET @@global.read_only = ON;
+
+-- Script para matar sessões ativas por mais de 15 minutos:
+select concat(concat('kill ',id),';') from information_schema.processlist where command = 'Sleep' and time > 900;
+
+-- resgatar senha encriptografada
+select password('teste');
+resultado: *A00D6EEF76EC509DB66358D2E6685F8FF7A4C3DD
+
+-- alterar a senha de um usuário
+SET PASSWORD FOR 'user'@'%' = PASSWORD('newpass');
+
+-- alterar senha de usuário com encriptografia
+alter user teste identified with mysql_native_password as '*A00D6EEF76EC509DB66358D2E6685F8FF7A4C3DD';
+
+-- ERROR 1819 (HY000): Your password does not satisfy the current policy requirements
+SET GLOBAL validate_password_policy=LOW;
+
+-- verificar o usuário do parâmetro define para as routines, triggers e views do banco
+SELECT table_schema,table_name,definer FROM information_schema.views
+union
+SELECT trigger_schema,trigger_name,definer FROM information_schema.triggers
+union
+SELECT routine_schema,routine_name,definer FROM information_schema.routines;
+
+-- fazer backup via cmd
+nohup mysqldump -v -u root -p12345678 --all-databases > bkp.sql &
+mysqldump -v db > db.sql
+sudo -u mysql mysqldump -v --events --routines --triggers --comments --set-gtid-purged=OFF --log-error="/var/local/backups/mysql/prd/full/consiafi_nao_apagar/bnpr.log" bnpr > "/var/local/backups/mysql/prd/full/consiafi_nao_apagar/bnpr.sql"
+
+-- dump de tabela
+mysqldump -v --hex-blob -uhenrique.santos -p -hlocalhost --set-gtid-purged=OFF ecnj protocolo_tmp > protocolo_tmp.sql
+
+-- bkp xtrabackup
+xtrabackup --user=nome_user --password=pass_user --backup --no-lock --parallel=32 --target-dir=${LOCAL_BKP_DIR}/${HOJE}
+ 
+-- bkp Incremental xtrabackup
+xtrabackup --user=nome_user --password=pass_user --backup --compress --no-lock --parallel=32 --target-dir=${LOCAL_BKP_DIR}/${HOJE}/ --incremental-basedir=${LOCAL_BKP_DIR_FULL}/${DT_ULT_BKP_FULL}
+
+-- fazer restore via cmd
+acessar a pasta bin
+executar comando
+mysql -v -p db_name < backup.sql > restore.log 2>&1
+mysql -v -h 10.2.96.50 -p 3306 -u root -p < c:\users\henrique.hss\desktop\bkpotrs20141028-00h00m.sql
+
+-- restaurando tabela
+mysql -v -uhenrique.santos -hlocalhost -p ecnj < protocolo_tmp.sql
+
+-- fazer backup e restore via cm em um comando só (com NFS compartilhado)
+mysqldump --user=henrique.santos --host=prata02.cnj.jus.br --password=Algar123 --add-drop-database --databases sip geafin --set-gtid-purged=OFF --triggers --routines --events | tee /var/local/backups/mysql/restore/remover_bkp_temp.sql | mysql --user=henrique.santos --host=localhost --password=Algar123 &
+
+
+-- Erro de banco criado automaticamente com a pasta lost+found
+mysql> show databases;
++---------------------+
+| Database            |
++---------------------+
+| information_schema  |
+| #mysql50#lost+found |
+| mysql               |
+| performance_schema  |
++---------------------+
+# vim /etc/my.cnf
+-- Adicionar a linha:
+ignore-db-dir=lost+found
+# /etc/init.d/mysqld stop
+Stopping mysqld: [  OK  ]
+# /etc/init.d/mysqld start
+Starting mysqld: [  OK  ]
+# mysql -p
+mysql> show databases;
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| mysql              |
+| performance_schema |
++--------------------+
+
+
+-- database = table(s) + index(es). 
+SELECT CONCAT( table_schema, '.', table_name ) table_name,
+CONCAT( ROUND( data_length / ( 1024 *1024 ) , 2 ) , 'M' ) data_length,
+CONCAT( ROUND( index_length / ( 1024 *1024 ) , 2 ) , 'M' ) index_length,
+CONCAT( ROUND( ROUND( data_length + index_length ) / ( 1024 *1024 ) , 2 ) , 'M' ) total_size
+FROM information_schema.TABLES
+ORDER BY data_length DESC;
+
+-- Tamanho dos databases
+SELECT table_schema 'database',
+CONCAT( ROUND( SUM( data_length + index_length ) / ( 1024 *1024 ) , 2 ) , 'M' ) size
+FROM information_schema.TABLES
+WHERE ENGINE=('MyISAM' || 'InnoDB' )
+GROUP BY table_schema;
+
+SELECT CONCAT( ROUND( SUM( data_length + index_length ) / ( 1024*1024*1024 ) , 2 ) , 'GB' ) size
+FROM information_schema.TABLES;
+
+-- criar tabela de tamanho dos bancos
+drop table if exists `mysql`.`schema_size`;
+create table  `mysql`.`schema_size` (
+  `banco` varchar(20) not null default '',
+  `data1` timestamp not null default current_timestamp,
+  `tamanho_b` varchar(20) not null default ''
+) engine=innodb default charset=latin1 comment='tabela para armazenamento do tamanho dos schemas';
+
+-- alimentação tabela de tamanho dos bancos
+insert into mysql.schema_size (banco, tamanho_b)
+sum( data_length + index_length ) "bytes"
+from information_schema.tables
+where table_schema not in ('mysql','test','information_schema')
+group by table_schema
+order by 2 desc;
+
+-- select de tamanho dos bancos
+select banco, date_format(data1,'%d/%m/%y'), tamanho_b from mysql.schema_size order by data1;
+select round(sum(data_length + index_length)/1024/1024/1024,2) "GB" from information_schema.tables where table_schema not in ('mysql','test','information_schema');
+
+select ifnull(table_schema,'total') "database", round(soma/1024/1024/1024)
+from (select sum( data_length + index_length ) soma, table_schema from information_schema.tables
+where table_schema not in ('mysql','test','information_schema')
+group by table_schema with rollup) a;
+
+-- tamanho das tabelas
+SELECT table_schema AS DB_NAME, TABLE_NAME, (DATA_LENGTH+INDEX_LENGTH)/1024/1024 AS TABLE_SIZE_in_MB FROM information_schema.TABLES;
+
+-- listar quantas tabelas em cada banco
+select ifnull(table_schema,'total') "database",tablecount
+from (select count(1) tablecount,table_schema 
+      from information_schema.tables 
+      where table_schema not in ('information_schema','mysql') 
+      group by table_schema with rollup) a;
+
+-- listar o número de linhas por tabelas no schema
+select table_schema, table_name, table_rows from information_schema.tables;
+
+-- listar os databases por linha de comando sem cabeçalho e sem bordas (boxing)
+mysql -N -s -e "select distinct table_schema from information_schema.tables where table_schema not in ('information_schema','mysql','performance_schema','sys') order by 1;"
+
+-- deletes infra_log sei sip
+delete from infra_log where dth_log < '2023-04-01 00:00:00';
+delete from infra_log where texto_log like '%Indexação%' and sta_tipo = 'I';
+delete from infra_log where texto_log like '%GearmanExcepetion%' and sta_tipo = 'E';
+delete from infra_log where texto_log like '%solr%' and sta_tipo = 'E';
+
+-- MySQL Performance Cheat Sheet (parâmetros de performance do MySQL)
+https://severalnines.com/database-blog/mysql-performance-cheat-sheet
+
+-- Vefificar backup mysql:
+https://rafaelit.wordpress.com/2013/02/15/configurando-mysqldump-para-fazer-backup-do-banco-de-dados-mysql/

@@ -1,0 +1,2728 @@
+-- Requisitos para oracle 12c
+https://docs.oracle.com/database/121/LTDQI/toc.htm#CHDIDIIE
+
+-- Site com features do oracle
+https://apex.oracle.com/database-features/
+
+-- Oracle learning:
+https://apexapps.oracle.com/pls/apex/f?p=44785:OLL_HOME:0
+
+-- Matriz de compatibilidade SUSE
+https://www.suse.com/pt-br/partners/alliance/oracle/matrix/
+
+-- Oracle upgrade with dataguard
+https://dohdatabase.com/2020/11/26/how-to-upgrade-with-data-guard/
+
+-- Hugepages
+https://oracle-base.com/articles/linux/configuring-huge-pages-for-oracle-on-linux-64
+https://www.carajandb.com/en/blog/2016/7-easy-steps-to-configure-hugepages-for-your-oracle-database-server/
+
+-- memory and IO performance on suse 11
+https://www.suse.com/c/sles-1112-os-tuning-optimisation-guide-part-1/
+
+-- Managing Audit Trail
+https://docs.oracle.com/en/database/oracle/oracle-database/19/ostmg/manage-asm-asmcmd.html#GUID-95231568-96AE-47F4-9E61-A46D47E7E634
+
+-- tunning de tablespace (implementar)
+http://www.fabioprado.net/2013/11/boas-praticas-para-gerenciar-tablespaces.html
+
+-- sobr resize datafiles
+https://oraclehome.com.br/2011/10/04/resize-tablespace/
+
+-- tunning
+https://docs.oracle.com/en/database/oracle/oracle-database/18/admqs/monitoring-and-tuning-the-database.html#GUID-573F73E4-EF1C-46F2-9BAB-73DA08E7D364
+
+-- Data redaction (LGPD)
+https://www.oracle.com/br/technical-resources/articles/idm/functionality-data-redaction-12c.html
+
+-- NERV blog
+http://nervinformatica.com.br/blog/
+
+-- AHF
+https://docs.oracle.com/en/engineered-systems/health-diagnostics/autonomous-health-framework/ahfug/tfactl-diagcollect-srdc.html#GUID-0463FC76-ACF9-4BAD-B540-D33B8E663A29
+
+-- TFA
+https://www.oracle.com/br/technical-resources/articles/database-performance/trace-file-analyzer.html
+
+-- Database point-in-time recovery e tablespace point-in-time recovery
+https://www.oracle.com/br/technical-resources/articles/database-performance/dbpitr-tspitr-rman.html
+
+-- RLWRAP
+https://oracle-base.com/articles/linux/rlwrap
+
+-- Oracle OCI migration
+oracle.com/goto/move
+oracle.com/goto/zdm
+
+-- TASKS DIARIAS
+Olhar backups de produção
+Jobs oracle diários - select * from dba_scheduler_job_log where status <> 'SUCCEEDED' and log_date > sysdate-1 order by LOG_DATE desc;
+
+-- TASKS SEMANAIS
+Olhar backups de produção
+Jobs oracle semanais - select * from dba_scheduler_job_log where status <> 'SUCCEEDED' and log_date > sysdate-7 order by LOG_DATE desc;
+Teste de restore
+
+-- TASKS MENSAIS
+
+
+-- Sistemas Oracle Produção:
+bolsaatleta.cidadania.gov.br
+carteiraidoso.cidadania.gov.br
+devolucaoauxilioemergencial.cidadania.gov.br
+sli.cidadania.gov.br
+sigtv.cidadania.gov.br
+sso.cidadania.gov.br
+simdec.cidadania.gov.br
+sisam.cidadania.gov.br
+mais.cidadania.gov.br
+pcf.cidadania.gov.br
+
+-- serviços do suas:
+suasweb, senso suas, sigtv, cadsuas
+
+-- dicionário do oracle
+oracle dictionary contains descriptions of data dictionary tables and views.
+
+-- sqlplus
+vim $ORACLE_HOME/sqlplus/admin/glogin.sql
+
+SET PAGESIZE 1000
+SET LINESIZE 220
+SET TIMING ON
+SET TIME ON
+SET PAGES 32767
+SET LINES 32767
+SET LONG 1000000
+SET SERVEROUTPUT ON SIZE 1000000
+SET SQLPROMPT '&_USER@&_CONNECT_IDENTIFIER> '
+DEFINE_EDITOR=vi
+
+spool 
+
+-- shutdown instância
+export ORACLE_SID=
+sqlplus / as sysdba
+shut immediate;
+
+-- Shutdown para reinício do host
+$ srvctl stop listener -n node_name
+$ srvctl stop instance -d <db_name> -i <instance_name> -o immediate
+$ srvctl stop asm -n node_name
+$ srvctl stop nodeapps -n node_name
+
+- Reiniciando cluster
+[root@prdb01 ~]# /u01/oracle/11.2.0.4/grid/bin/crsctl enable has
+CRS-4622: Oracle High Availability Services autostart is enabled.
+[root@prdb01 ~]# /u01/oracle/11.2.0.4/grid/bin/crsctl start has
+CRS-4123: Oracle High Availability Services has been started.
+
+-- Listar todos as instâncias cadastradas e seu status no cluster
+crsctl stat res -t -w "TYPE = ora.database.type"
+
+-- trigger de auditoria
+CALL AUDITORIA.SP_INICIA_AUDITORIA ('01305209184','10.68.159.9','SIPC','141034','Ticket Citsmart','S');
+CALL SISPAA.SP_INICIA_AUDITORIA('013.052.091-84', '10.68.97.15', 'SISPAA', 'CTISMART: 101064', 'SCRIPT SISPAA', 'S'); 
+
+-- trigger filtro_login
+alter user DB_SIPC profile pf_filtro_login account unlock;
+insert into dba_mds.tb_filtro_login (session_user,ip_address) values ('DB_SIPC','10.222.11.196'); -- IP Runner Flyway
+commit;
+select * from dba_mds.tb_filtro_login where session_user = 'DB_AUXILIO_EMERGENCIAL';
+
+-- Criar alertas banco Oracle no zabbix
+Verificar alerta de tablespace
+
+-- mview buge
+DBMS_SNAPSHOT.REFRESH('SUAS.MV_MV_CARGA_VLPAGO_IGDSUAS_2021','C');
+ORA-20000: ORA-01031: insufficient privileges
+begin DBMS_SNAPSHOT.REFRESH('SUAS.MV_MV_CARGA_VLPAGO_IGDSUAS_2021','C'); end;
+
+-- Objetos em NOWAIT - ORA-00054
+SELECT O.OBJECT_NAME, S.SID, S.SERIAL#, P.SPID, S.PROGRAM,S.USERNAME,
+S.MACHINE,S.PORT , S.LOGON_TIME,SQ.SQL_FULLTEXT 
+FROM V$LOCKED_OBJECT L, DBA_OBJECTS O, V$SESSION S, 
+V$PROCESS P, V$SQL SQ 
+WHERE L.OBJECT_ID = O.OBJECT_ID 
+AND L.SESSION_ID = S.SID AND S.PADDR = P.ADDR 
+AND S.SQL_ADDRESS = SQ.ADDRESS;
+
+-- @locks
+DECLARE
+    CURSOR cur_BlockingLocks IS
+        SELECT
+            iw.instance_name                                                    AS waiting_instance
+          , sw.status                                                           AS waiting_status
+          , lw.sid                                                              AS waiting_sid
+          , sw.serial#                                                          AS waiting_serial_num
+          , sw.username                                                         AS waiting_oracle_username
+          , sw.osuser                                                           AS waiting_os_username
+          , sw.machine                                                          AS waiting_machine
+          , pw.spid                                                             AS waiting_spid
+          , SUBSTR(sw.terminal,0, 39)                                           AS waiting_terminal
+          , SUBSTR(sw.program,0, 39)                                            AS waiting_program
+          , ROUND(lw.ctime/60)                                                  AS waiting_lock_time_min
+          , DECODE (   lh.type
+                     , 'CF', 'Control File'
+                     , 'DX', 'Distributed Transaction'
+                     , 'FS', 'File Set'
+                     , 'IR', 'Instance Recovery'
+                     , 'IS', 'Instance State'
+                     , 'IV', 'Libcache Invalidation'
+                     , 'LS', 'Log Start or Log Switch'
+                     , 'MR', 'Media Recovery'
+                     , 'RT', 'Redo Thread'
+                     , 'RW', 'Row Wait'
+                     , 'SQ', 'Sequence Number'
+                     , 'ST', 'Diskspace Transaction'
+                     , 'TE', 'Extend Table'
+                     , 'TT', 'Temp Table'
+                     , 'TX', 'Transaction'
+                     , 'TM', 'DML'
+                     , 'UL', 'PLSQL User_lock'
+                     , 'UN', 'User Name'
+                     , 'Nothing-'
+                   )                                                            AS waiter_lock_type
+          , DECODE (   lw.request
+                     , 0, 'None'                        /* Mon Lock equivalent */
+                     , 1, 'NoLock'                      /* N */
+                     , 2, 'Row-Share (SS)'              /* L */
+                     , 3, 'Row-Exclusive (SX)'          /* R */
+                     , 4, 'Share-Table'                 /* S */
+                     , 5, 'Share-Row-Exclusive (SSX)'   /* C */
+                     , 6, 'Exclusive'                   /* X */
+                     ,    '[Nothing]'
+                   )                                                            AS waiter_mode_request
+          , ih.instance_name                                                    AS locking_instance
+          , sh.status                                                           AS locking_status
+          , lh.sid                                                              AS locking_sid
+          , sh.serial#                                                          AS locking_serial_num
+          , sh.username                                                         AS locking_oracle_username
+          , sh.osuser                                                           AS locking_os_username
+          , sh.machine                                                          AS locking_machine
+          , ph.spid                                                             AS locking_spid
+          , SUBSTR(sh.terminal,0, 39)                                           AS locking_terminal
+          , SUBSTR(sh.program,0, 39)                                            AS locking_program
+          , ROUND(lh.ctime/60)                                                  AS locking_lock_time_min
+          , aw.sql_text                                                         AS waiting_sql_text
+        FROM
+            gv$lock     lw
+          , gv$lock     lh
+          , gv$instance iw
+          , gv$instance ih
+          , gv$session  sw
+          , gv$session  sh
+          , gv$process  pw
+          , gv$process  ph
+          , gv$sqlarea  aw
+        WHERE
+              iw.inst_id  = lw.inst_id
+          AND ih.inst_id  = lh.inst_id
+          AND sw.inst_id  = lw.inst_id
+          AND sh.inst_id  = lh.inst_id
+          AND pw.inst_id  = lw.inst_id
+          AND ph.inst_id  = lh.inst_id
+          AND aw.inst_id  = lw.inst_id
+          AND sw.sid      = lw.sid
+          AND sh.sid      = lh.sid
+          AND lh.id1      = lw.id1
+          AND lh.id2      = lw.id2
+          AND lh.request  = 0
+          AND lw.lmode    = 0
+          AND (lh.id1, lh.id2) IN ( SELECT id1,id2
+                                    FROM   gv$lock
+                                    WHERE  request = 0
+                                    INTERSECT
+                                    SELECT id1,id2
+                                    FROM   gv$lock
+                                    WHERE  lmode = 0
+                                  )
+          AND sw.paddr  = pw.addr (+)
+          AND sh.paddr  = ph.addr (+)
+          AND sw.sql_address  = aw.address
+        ORDER BY
+            iw.instance_name
+          , lw.sid;
+    TYPE t_BlockingLockRecord IS RECORD (
+          WaitingInstanceName       VARCHAR2(16)
+        , WaitingStatus             VARCHAR2(8)
+        , WaitingSid                NUMBER
+        , WaitingSerialNum          NUMBER
+        , WaitingOracleUsername     VARCHAR2(30)
+        , WaitingOSUsername         VARCHAR2(30)
+        , WaitingMachine            VARCHAR2(64)
+        , WaitingSpid               VARCHAR2(12)
+        , WaitingTerminal           VARCHAR2(30)
+        , WaitingProgram            VARCHAR2(48)
+        , WaitingLockTimeMinute     NUMBER
+        , WaiterLockType            VARCHAR2(30)
+        , WaiterModeRequest         VARCHAR2(30)
+        , LockingInstanceName       VARCHAR2(16)
+        , LockingStatus             VARCHAR2(8)
+        , LockingSid                NUMBER
+        , LockingSerialNum          NUMBER
+        , LockingOracleUsername     VARCHAR2(30)
+        , LockingOSUsername         VARCHAR2(30)
+        , LockingMachine            VARCHAR2(64)
+        , LockingSpid               VARCHAR2(12)
+        , LockingTerminal           VARCHAR2(30)
+        , LockingProgram            VARCHAR2(48)
+        , LockingLockTimeMinute     NUMBER
+        , SQLText                   VARCHAR2(1000)
+    );
+    TYPE t_BlockingLockRecordTable IS TABLE OF t_BlockingLockRecord INDEX BY BINARY_INTEGER;
+    v_BlockingLockArray             t_BlockingLockRecordTable;
+    v_BlockingLockRec               cur_BlockingLocks%ROWTYPE;
+    v_NumBlockingLocksIncidents     BINARY_INTEGER := 0;
+BEGIN
+    DBMS_OUTPUT.ENABLE(1000000);
+    OPEN cur_BlockingLocks;
+    LOOP
+        FETCH cur_BlockingLocks INTO v_BlockingLockRec;
+        EXIT WHEN cur_BlockingLocks%NOTFOUND;
+        v_NumBlockingLocksIncidents := v_NumBlockingLocksIncidents + 1;
+        v_BlockingLockArray(v_NumBlockingLocksIncidents).WaitingInstanceName      := v_BlockingLockRec.waiting_instance;
+        v_BlockingLockArray(v_NumBlockingLocksIncidents).WaitingStatus            := v_BlockingLockRec.waiting_status;
+        v_BlockingLockArray(v_NumBlockingLocksIncidents).WaitingSid               := v_BlockingLockRec.waiting_sid;
+        v_BlockingLockArray(v_NumBlockingLocksIncidents).WaitingSerialNum         := v_BlockingLockRec.waiting_serial_num;
+        v_BlockingLockArray(v_NumBlockingLocksIncidents).WaitingOracleUsername    := v_BlockingLockRec.waiting_oracle_username;
+        v_BlockingLockArray(v_NumBlockingLocksIncidents).WaitingOSUsername        := v_BlockingLockRec.waiting_os_username;
+        v_BlockingLockArray(v_NumBlockingLocksIncidents).WaitingMachine           := v_BlockingLockRec.waiting_machine;
+        v_BlockingLockArray(v_NumBlockingLocksIncidents).WaitingSpid              := v_BlockingLockRec.waiting_spid;
+        v_BlockingLockArray(v_NumBlockingLocksIncidents).WaitingTerminal          := v_BlockingLockRec.waiting_terminal;
+        v_BlockingLockArray(v_NumBlockingLocksIncidents).WaitingProgram           := v_BlockingLockRec.waiting_program;
+        v_BlockingLockArray(v_NumBlockingLocksIncidents).WaitingLockTimeMinute    := v_BlockingLockRec.waiting_lock_time_min;
+        v_BlockingLockArray(v_NumBlockingLocksIncidents).WaiterLockType           := v_BlockingLockRec.waiter_lock_type;
+        v_BlockingLockArray(v_NumBlockingLocksIncidents).WaiterModeRequest        := v_BlockingLockRec.waiter_mode_request;
+        v_BlockingLockArray(v_NumBlockingLocksIncidents).LockingInstanceName      := v_BlockingLockRec.locking_instance;
+        v_BlockingLockArray(v_NumBlockingLocksIncidents).LockingStatus            := v_BlockingLockRec.locking_status;
+        v_BlockingLockArray(v_NumBlockingLocksIncidents).LockingSid               := v_BlockingLockRec.locking_sid;
+        v_BlockingLockArray(v_NumBlockingLocksIncidents).LockingSerialNum         := v_BlockingLockRec.locking_serial_num;
+        v_BlockingLockArray(v_NumBlockingLocksIncidents).LockingOracleUsername    := v_BlockingLockRec.locking_oracle_username;
+        v_BlockingLockArray(v_NumBlockingLocksIncidents).LockingOSUsername        := v_BlockingLockRec.locking_os_username;
+        v_BlockingLockArray(v_NumBlockingLocksIncidents).LockingMachine           := v_BlockingLockRec.locking_machine;
+        v_BlockingLockArray(v_NumBlockingLocksIncidents).LockingSpid              := v_BlockingLockRec.locking_spid;
+        v_BlockingLockArray(v_NumBlockingLocksIncidents).LockingTerminal          := v_BlockingLockRec.locking_terminal;
+        v_BlockingLockArray(v_NumBlockingLocksIncidents).LockingProgram           := v_BlockingLockRec.locking_program;
+        v_BlockingLockArray(v_NumBlockingLocksIncidents).LockingLockTimeMinute    := v_BlockingLockRec.locking_lock_time_min;
+        v_BlockingLockArray(v_NumBlockingLocksIncidents).SQLText                  := v_BlockingLockRec.waiting_sql_text;
+    END LOOP;
+    CLOSE cur_BlockingLocks;
+    DBMS_OUTPUT.PUT_LINE('Number of blocking lock incidents: ' || v_BlockingLockArray.COUNT);
+    DBMS_OUTPUT.PUT(chr(10));
+    FOR RowIndex IN 1 .. v_BlockingLockArray.COUNT
+    LOOP
+        DBMS_OUTPUT.PUT_LINE('Incident ' || RowIndex);
+        DBMS_OUTPUT.PUT_LINE('---------------------------------------------------------------------------------------------------------');
+        DBMS_OUTPUT.PUT_LINE('                        WAITING                                  BLOCKING');
+        DBMS_OUTPUT.PUT_LINE('                        ---------------------------------------- ----------------------------------------');
+        DBMS_OUTPUT.PUT_LINE('Instance Name         : ' || RPAD(v_BlockingLockArray(RowIndex).WaitingInstanceName, 41)   || v_BlockingLockArray(RowIndex).LockingInstanceName);
+        DBMS_OUTPUT.PUT_LINE('Oracle SID            : ' || RPAD(v_BlockingLockArray(RowIndex).WaitingSid, 41)            || v_BlockingLockArray(RowIndex).LockingSid);
+        DBMS_OUTPUT.PUT_LINE('Serial#               : ' || RPAD(v_BlockingLockArray(RowIndex).WaitingSerialNum, 41)      || v_BlockingLockArray(RowIndex).LockingSerialNum);
+        DBMS_OUTPUT.PUT_LINE('Oracle User           : ' || RPAD(v_BlockingLockArray(RowIndex).WaitingOracleUsername, 41) || v_BlockingLockArray(RowIndex).LockingOracleUsername);
+        DBMS_OUTPUT.PUT_LINE('O/S User              : ' || RPAD(v_BlockingLockArray(RowIndex).WaitingOSUsername, 41) || v_BlockingLockArray(RowIndex).LockingOSUsername);
+        DBMS_OUTPUT.PUT_LINE('Machine               : ' || RPAD(v_BlockingLockArray(RowIndex).WaitingMachine, 41) || v_BlockingLockArray(RowIndex).LockingMachine);
+        DBMS_OUTPUT.PUT_LINE('O/S PID               : ' || RPAD(v_BlockingLockArray(RowIndex).WaitingSpid, 41) || v_BlockingLockArray(RowIndex).LockingSpid);
+        DBMS_OUTPUT.PUT_LINE('Terminal              : ' || RPAD(v_BlockingLockArray(RowIndex).WaitingTerminal, 41) || v_BlockingLockArray(RowIndex).LockingTerminal);
+        DBMS_OUTPUT.PUT_LINE('Lock Time             : ' || RPAD(v_BlockingLockArray(RowIndex).WaitingLockTimeMinute || ' minutes', 41)  || v_BlockingLockArray(RowIndex).LockingLockTimeMinute ||' minutes');
+        DBMS_OUTPUT.PUT_LINE('Status                : ' || RPAD(v_BlockingLockArray(RowIndex).WaitingStatus, 41) || v_BlockingLockArray(RowIndex).LockingStatus);
+        DBMS_OUTPUT.PUT_LINE('Program               : ' || RPAD(v_BlockingLockArray(RowIndex).WaitingProgram, 41) || v_BlockingLockArray(RowIndex).LockingProgram);
+        DBMS_OUTPUT.PUT_LINE('Waiter Lock Type      : ' || v_BlockingLockArray(RowIndex).WaiterLockType);
+        DBMS_OUTPUT.PUT_LINE('Waiter Mode Request   : ' || v_BlockingLockArray(RowIndex).WaiterModeRequest);
+        DBMS_OUTPUT.PUT_LINE('Waiting SQL           : ' || v_BlockingLockArray(RowIndex).SQLText);
+        DBMS_OUTPUT.PUT(chr(10));
+    END LOOP;
+END;
+/
+
+-- Olhar:
+select * from DBA_BLOCKERS - mostra as sessões non-waiting segurando locks waited-on
+select * from DBA_DDL_LOCKS - mostra locks DDL
+select * from DBA_DML_LOCKS - mostra locks DML
+select * from DBA_LOCK_INTERNAL - mostra 1 linha para cada lock ou latch held ou being requested com o usuário que está segurando o lock
+select * from DBA_LOCKS - mostra locks ou latches held ou being requested
+select * from DBA_WAITERS - mostra as sessões que estão esperando, mas não segurando locks
+
+-- https://orahow.com/find-and-remove-table-lock-in-oracle/
+ 
+-- contar os locks
+SELECT count(1)
+FROM gv$process p1, gv$process p2, gv$session s1, gv$session s2, dba_locks w, dba_locks h, dba_objects o
+WHERE w.last_convert > 30 AND h.mode_held != 'None' AND h.mode_held != 'Null' AND w.mode_requested != 'None'
+AND s1.row_wait_obj# = o.object_id
+AND w.lock_type(+) = h.lock_type
+AND w.lock_id1(+) = h.lock_id1
+AND w.lock_id2 (+) = h.lock_id2
+AND w.session_id = s1.sid (+)
+AND h.session_id = s2.sid (+)
+AND s1.paddr = p1.addr (+) AND s2.paddr = p2.addr (+) and s1.status not in('KILLED','INACTIVE') ORDER BY w.last_convert DESC;
+
+-- script para gerar script para eliminar tudo o que não for MODE_HELD = NONE
+select 'alter system disconnect session '||''''||sid||','||serial#||''''||' immediate;' from gv$session where sid in (
+select a.sid from gv$lock a, gv$session s where (id1,id2) in
+(select b.id1, b.id2 from gv$lock b where b.id1=a.id1 and b.id2=a.id2 and b.request>0)
+  and a.inst_id=s.inst_id and a.sid=s.sid and a.lmode!=0);
+
+-- script para gerar script para eliminar lock
+select 'alter system disconnect session '||''''||sid||','||serial#||''''||' immediate;' from gv$session where sid in (
+select a.sid from gv$lock a, gv$session s where (id1,id2) in
+(select b.id1, b.id2 from gv$lock b where b.id1=a.id1 and b.id2=a.id2 and b.request>0)
+  and a.inst_id=s.inst_id and a.sid=s.sid and a.lmode in ());
+
+-- todos os locks
+select	nvl(S.USERNAME,'Internal') username, 
+	nvl(S.TERMINAL,'None') terminal, 
+	L.SID||','||S.SERIAL# Kill, 
+	U1.NAME||'.'||substr(T1.NAME,1,20) tab, 
+	decode(L.LMODE,1,'No Lock', 
+		2,'Row Share', 
+		3,'Row Exclusive', 
+		4,'Share', 
+		5,'Share Row Exclusive', 
+		6,'Exclusive',null) lmode, 
+	decode(L.REQUEST,1,'No Lock', 
+		2,'Row Share', 
+		3,'Row Exclusive', 
+		4,'Share', 
+		5,'Share Row Exclusive', 
+		6,'Exclusive',null) request,
+        l.ctime
+from	V$LOCK L,  
+	V$SESSION S, 
+	SYS.USER$ U1, 
+	SYS.OBJ$ T1 
+where	L.SID = S.SID  
+and	T1.OBJ# = decode(L.ID2,0,L.ID1,L.ID2)  
+and	U1.USER# = T1.OWNER# 
+and	S.TYPE != 'BACKGROUND' 
+order by 1,2,5 
+/ 
+
+-- identificar e matar a sessão que está lock o banco 
+SELECT
+    i.instance_name                                 instance_name
+  , l.sid || ' / ' || s.serial#                     sid_serial
+  , s.username                                      locking_oracle_user
+  , DECODE(   l.lmode
+            , 1, NULL
+            , 2, 'Row Share'
+            , 3, 'Row Exclusive'
+            , 4, 'Share'
+            , 5, 'Share Row Exclusive'
+            , 6, 'Exclusive'
+            ,    'None')                            mode_held
+  , DECODE(   l.request
+            , 1, NULL
+            , 2, 'Row Share'
+            , 3, 'Row Exclusive'
+            , 4, 'Share'
+            , 5, 'Share Row Exclusive'
+            , 6, 'Exclusive'
+            ,    'None')                            mode_requested
+  , DECODE (   l.type
+             , 'CF', 'Control File'
+             , 'DX', 'Distributed Transaction'
+             , 'FS', 'File Set'
+             , 'IR', 'Instance Recovery'
+             , 'IS', 'Instance State'
+             , 'IV', 'Libcache Invalidation'
+             , 'LS', 'Log Start or Log Switch'
+             , 'MR', 'Media Recovery'
+             , 'RT', 'Redo Thread'
+             , 'RW', 'Row Wait'
+             , 'SQ', 'Sequence Number'
+             , 'ST', 'Diskspace Transaction'
+             , 'TE', 'Extend Table'
+             , 'TT', 'Temp Table'
+             , 'TX', 'Transaction'
+             , 'TM', 'DML'
+             , 'UL', 'PLSQL User_lock'
+             , 'UN', 'User Name'
+             ,       'Nothing'
+           )                                        lock_type
+  , o.owner || '.' || o.object_name                 object
+  , ROUND(l.ctime/60, 2)                            lock_time_min
+FROM
+    v$instance    i
+  , v$session     s
+  , v$lock        l
+  , dba_objects   o
+  , dba_tables    t
+WHERE
+      l.id1            =  o.object_id 
+  AND s.sid            =  l.sid
+  AND o.owner          =  t.owner
+  AND o.object_name    =  t.table_name
+  AND o.owner          <> 'SYS'
+  AND l.type           =  'TM'
+ORDER BY
+    i.instance_name
+  , l.sid;
+
+BEGIN
+  dbms_output.enable(1000000);
+  for do_loop in (select session_id, a.object_id, xidsqn, oracle_username, b.owner owner,
+  b.object_name object_name, b.object_type object_type
+  FROM v$locked_object a, dba_objects b
+  WHERE xidsqn != 0
+  and b.object_id = a.object_id)
+  loop
+  dbms_output.put_line('.');
+  dbms_output.put_line('Blocking Session : '||do_loop.session_id);
+  dbms_output.put_line('Object (Owner/Name): '||do_loop.owner||'.'||do_loop.object_name);
+  dbms_output.put_line('Object Type : '||do_loop.object_type);
+  for next_loop in (select sid from v$lock
+  where id2 = do_loop.xidsqn
+  and sid != do_loop.session_id)
+  LOOP
+  dbms_output.put_line('Sessions being blocked : '||next_loop.sid);
+ end loop;
+ end loop;
+ END;
+/
+
+-- sessão presa no banco:
+SELECT O.OBJECT_NAME, S.SID, S.SERIAL#, P.SPID, S.PROGRAM,S.USERNAME,
+S.MACHINE,S.PORT , S.LOGON_TIME,SQ.SQL_FULLTEXT 
+FROM V$LOCKED_OBJECT L, DBA_OBJECTS O, V$SESSION S, 
+V$PROCESS P, V$SQL SQ 
+WHERE L.OBJECT_ID = O.OBJECT_ID 
+AND L.SESSION_ID = S.SID AND S.PADDR = P.ADDR 
+AND S.SQL_ADDRESS = SQ.ADDRESS;
+
+-- desconectar sessão em lock no banco
+declare 
+v_dbms varchar2(800);
+BEGIN
+for I IN
+(SELECT SID,SERIAL# FROM GV$SESSION WHERE SID IN (
+select a.sid
+from gv$lock a, gv$session s
+where (id1,id2) in (select b.id1, b.id2
+                    from gv$lock b
+                    where b.id1=a.id1
+                      and b.id2=a.id2
+                      and b.request>0)
+  and a.inst_id=s.inst_id
+  and s.status = 'INACTIVE'
+  and a.sid=s.sid
+  and a.lmode in (6,3)
+  and a.inst_id=(select INSTANCE_NUMBER from v$instance)))
+LOOP
+v_dbms:='ALTER SYSTEM DISCONNECT SESSION '||''''||I.SID||','||I.SERIAL#||''''||' IMMEDIATE';
+dbms_output.put_line(v_dbms);
+execute immediate v_dbms;
+END LOOP;
+END;
+/
+
+
+-- ver query do usuário (SID) no banco;
+SELECT sql_text FROM v$session a, v$sql b WHERE b.sql_id = a.sql_id AND sid = 32;
+
+-- ver sessões conectadas
+select * from gv$session;
+select saddr, sid, username, logon_time, status, osuser, machine, program from v$session;
+
+-- Monitorar o que um usuário está fazendo no banco via PL/SQL (TRACE)
+http://www.devmedia.com.br/como-descobrir-o-que-uma-determinada-sessao-no-oracle-esta-executando/3342
+
+-- script para matar sessões
+select 'alter system kill session ''' || sid || ',' || serial# || ''' immediate;' script from v$session where username = 'ASPQM200';
+
+DECLARE
+  V_SCRIPT VARCHAR2(2000);
+BEGIN
+  FOR C_SCRIPT IN (
+  SELECT
+    sid,
+    serial#
+  FROM
+    V$SESSION
+  WHERE
+    USERNAME = 'FAROL'
+    AND STATUS = 'ACTIVE'
+    AND LAST_CALL_ET > 7200
+  )
+  LOOP
+    V_SCRIPT := 'alter system kill session '''||C_SCRIPT.sid||','||C_SCRIPT.serial#||''' immediate';
+    EXECUTE IMMEDIATE V_SCRIPT;
+  END LOOP;
+END;
+/
+
+-- Matando Sessões KILLED (http://www.fernandosimon.com/blog/matando-sessoes-killed/)
+verificar o status killed
+SELECT s.inst_id, s.sid, s.SERIAL#, s.STATUS, s.USERNAME, s.MACHINE FROM gv$session s WHERE s.status = 'KILLED';
+
+verificar se está realizando rollback
+select t.INST_ID, s.sid, s.program, t.status as transaction_status, s.status as session_status, s.lockwait, s.pq_status, t.used_ublk as undo_blocks_used, decode(bitand(t.flag, 128), 0, 'NO', 'YES') rolling_back
+from gv$session s, gv$transaction t where s.taddr = t.addr and s.inst_id = t.inst_id and s.STATUS = 'KILLED' order by t.inst_id;
+
+verificar o que a sessão killed está aguardando
+SELECT sw.INST_ID, SW.SID, SW.SEQ#, SW.EVENT, SW.STATE, sw.WAIT_TIME FROM gv$session_wait sw WHERE sw.sid IN (SELECT sid FROM gv$session s WHERE s.status = 'KILLED' AND s.inst_id = sw.INST_ID) ORDER BY sw.inst_id;
+
+verificar os processos de SO que não tem sessões no BD
+SELECT p.INST_ID, p.pid, p.serial#, p.spid, p.program FROM gv$process p WHERE p.spid is not null AND NOT EXISTS (SELECT 1 FROM gv$session s WHERE s.inst_id = p.inst_id and s.paddr = p.addr) AND p.pname is null ORDER BY p.inst_id;
+
+verificar se estes processos no SO estão como "(LOCAL=NO)"
+ps -ef | grep <NUMERO DO PROCESSO>
+
+após o kill do processo no SO, aguardar alguns minutos e consultar se a sessão sumiu
+SELECT s.inst_id, s.sid, s.SERIAL#, s.STATUS, s.USERNAME, s.MACHINE FROM gv$session s WHERE s.status = 'KILLED';
+
+-- ver usuários
+select username, profile, account_status from dba_users order by username;
+
+-- criar usuário no container CDB
+create user c##dba_henrique identified by "password";
+
+-- criar usuário no pdb
+alter session set container = pdb;
+create user dba_henrique identified by "password";
+
+-- @grant @grants
+
+-- grants nas tabelas para o usuário admin
+exec rdsadmin.rdsadmin_util.grant_sys_object('DBA_SYS_PRIVS','ADMIN','SELECT');
+
+-- Script para copiar, garantir grants, excluir usuário para importar dumps
+undefine usr;
+set feedback off;
+set verify off;
+set lines 32767 pages 50000;
+select 'alter user "&&usr" account lock;' as "-- lock_user" from dba_users u where username in ('&&usr');
+select distinct 'alter system kill session '''||s.sid||','||s.serial#||',@'||s.inst_id||''' immediate;' as "-- kill_sessions" from gv$session s where username in ('&&usr');
+select 'drop user '||username||' cascade;' as "--drop_cascade" from dba_users where username in ('&&usr');
+select 'create user "'||s.name||decode(s.password,'external','" identified externally','" identified by values '''||s.password||'''')||' default tablespace '||u.default_tablespace||' temporary tablespace '||u.temporary_tablespace||' profile '||u.profile ||' account unlock;' as "-- create_users" from sys.user$ s, dba_users u where name=username and name in ('&&usr');
+select 'alter user '|| u.username ||' quota ' || decode(tq.max_bytes, -1,'unlimited',tq.max_bytes) ||' on ' || tq.tablespace_name || ';' as "-- quota" from dba_ts_quotas tq join dba_users u on tq.username=u.username where tq.username in ('&&usr');
+select 'grant '|| rp.granted_role || ' to ' || u.username || decode(rp.admin_option, 'YES', ' with grant option') || ';' as "-- role_grants" from dba_role_privs rp join dba_users u on rp.grantee=u.username where rp.grantee in ('&&usr');
+select 'grant '|| sp.privilege || ' to ' || u.username || decode(sp.admin_option, 'YES', ' with grant option') || ';' as "-- system_grants" from dba_sys_privs sp join dba_users u on sp.grantee=u.username where sp.grantee in ('&&usr');
+select 'grant '|| tp.privilege || ' on ' || tp.owner || '.' || tp.table_name ||' to '|| u.username || decode(grantable, 'YES', ' with grant option') || ';' as "-- db_object_grants" from dba_tab_privs tp join dba_users u on tp.grantee=u.username where tp.grantee in ('&&usr');
+select 'grant '|| cp.privilege || '(' || cp.column_name || ') on ' || cp.owner || '.' || cp.table_name || ' to ' || u.username ||';' as "-- col_objects_grants" from dba_col_privs cp join dba_users u on cp.grantee=u.username where cp.grantee in ('&&usr');
+select 'alter user "'|| u.username ||'" default role all;' as "-- default_role" from dba_users u where u.username in ('&&usr');
+undefine usr;
+set feedback on;
+set verify on;
+
+-- extrair grants dos usuários
+undefine usr;
+set feedback off;
+set verify off;
+set lines 32767 pages 50000;
+select 'grant '|| rp.granted_role || ' to ' || u.username || decode(rp.admin_option, 'YES', ' with grant option') || ';' as "-- role_grants" from dba_role_privs rp join dba_users u on rp.grantee=u.username where rp.grantee in ('&&usr');
+select 'grant '|| sp.privilege || ' to ' || u.username || decode(sp.admin_option, 'YES', ' with grant option') || ';' as "-- system_grants" from dba_sys_privs sp join dba_users u on sp.grantee=u.username where sp.grantee in ('&&usr');
+select 'grant '|| tp.privilege || ' on ' || tp.owner || '.' || tp.table_name ||' to '|| u.username || decode(grantable, 'YES', ' with grant option') || ';' as "-- db_object_grants" from dba_tab_privs tp join dba_users u on tp.grantee=u.username where tp.grantee in ('&&usr');
+select 'grant '|| cp.privilege || '(' || cp.column_name || ') on ' || cp.owner || '.' || cp.table_name || ' to ' || u.username ||';' as "-- col_objects_grants" from dba_col_privs cp join dba_users u on cp.grantee=u.username where cp.grantee in ('&&usr');
+undefine usr;
+set feedback on;
+set verify on;
+
+select u.username "usuario", rp.granted_role "permissao", null "coluna", null "tabela", null "schema" from dba_role_privs rp join dba_users u on rp.grantee=u.username where rp.grantee in (select username from dba_users where username not in ('ANONYMOUS','APPQOSSYS','AUDSYS','BACKUP','CSS','CTXSYS','EXPORT','GSMADMIN_INTERNAL','GSMCATUSER','GSMUSER','OLAPSYS','ORACLE_OCM','ORAPROBE','ORDPLUGINS','ORDSYS','OSADMIN','OSLOG','OSRUNTIME','OSSTATE','OUTLN','RMAN','SQLTXADMIN','SQLTXPLAIN','SYS','SYSBACKUP','SYSCONS','SYSDG','SYSKM','SYSTEM','WMSYS','XDB','XS$NULL'))
+union all
+select u.username "usuario", sp.privilege "permissao", null "coluna", null "tabela", null "schema" from dba_sys_privs sp join dba_users u on sp.grantee=u.username where sp.grantee in (select username from dba_users where username not in ('ANONYMOUS','APPQOSSYS','AUDSYS','BACKUP','CSS','CTXSYS','EXPORT','GSMADMIN_INTERNAL','GSMCATUSER','GSMUSER','OLAPSYS','ORACLE_OCM','ORAPROBE','ORDPLUGINS','ORDSYS','OSADMIN','OSLOG','OSRUNTIME','OSSTATE','OUTLN','RMAN','SQLTXADMIN','SQLTXPLAIN','SYS','SYSBACKUP','SYSCONS','SYSDG','SYSKM','SYSTEM','WMSYS','XDB','XS$NULL'))
+union all
+select u.username "usuario", tp.privilege "permissao", to_char(null) "coluna", tp.table_name "tabela", tp.owner "schema" from dba_tab_privs tp join dba_users u on tp.grantee=u.username where tp.grantee in (select username from dba_users where username not in ('ANONYMOUS','APPQOSSYS','AUDSYS','BACKUP','CSS','CTXSYS','EXPORT','GSMADMIN_INTERNAL','GSMCATUSER','GSMUSER','OLAPSYS','ORACLE_OCM','ORAPROBE','ORDPLUGINS','ORDSYS','OSADMIN','OSLOG','OSRUNTIME','OSSTATE','OUTLN','RMAN','SQLTXADMIN','SQLTXPLAIN','SYS','SYSBACKUP','SYSCONS','SYSDG','SYSKM','SYSTEM','WMSYS','XDB','XS$NULL'))
+union all
+select u.username "usuario", cp.privilege "permissao", cp.column_name "coluna", cp.table_name "tabela", cp.owner "schema" from dba_col_privs cp join dba_users u on cp.grantee=u.username where cp.grantee in (select username from dba_users where username not in ('ANONYMOUS','APPQOSSYS','AUDSYS','BACKUP','CSS','CTXSYS','EXPORT','GSMADMIN_INTERNAL','GSMCATUSER','GSMUSER','OLAPSYS','ORACLE_OCM','ORAPROBE','ORDPLUGINS','ORDSYS','OSADMIN','OSLOG','OSRUNTIME','OSSTATE','OUTLN','RMAN','SQLTXADMIN','SQLTXPLAIN','SYS','SYSBACKUP','SYSCONS','SYSDG','SYSKM','SYSTEM','WMSYS','XDB','XS$NULL'))
+order by 1;
+
+/*copiar usuários*/
+select 'CREATE USER "' || s.NAME ||   DECODE(s.PASSWORD,'EXTERNAL','" identified EXTERNALLY','" identified by values ''' || s.PASSWORD || '''') ||' DEFAULT TABLESPACE '|| u.DEFAULT_TABLESPACE ||' TEMPORARY TABLESPACE '||u.TEMPORARY_TABLESPACE ||' PROFILE '||u.PROFILE ||';' as "-- create_users" from   sys.USER$ s, DBA_USERS u where  NAME=USERNAME AND NAME IN ('SCHEMA');
+
+/*definir a quota dos usuários*/
+select 'alter user '|| u.username ||' quota ' || decode(tq.max_bytes, -1,'unlimited',tq.max_bytes) ||' on ' || tq.tablespace_name || ';' as "-- quota" from dba_ts_quotas tq join dba_users u on tq.username=u.username where tq.username in ('SCHEMA') order by tq.username;
+
+/*definir a role default dos usuários*/
+select 'alter user '|| u.username ||' default role ' || rp.granted_role ||';' as "-- default_role" from dba_role_privs rp join dba_users u on rp.grantee=u.username where rp.grantee in ('SCHEMA') and default_role = 'YES' order by rp.GRANTEE;
+
+/*grant de role dos usuários*/
+select 'grant '|| rp.granted_role || ' to ' || u.username || decode(rp.admin_option, 'YES', ' with grant option') || ';' as "-- role_grants" from dba_role_privs rp join dba_users u on rp.grantee=u.username where rp.grantee in ('SCHEMA') order by rp.GRANTEE;
+
+/*grant de sistema dos usuários*/
+select 'grant '|| sp.privilege || ' to ' || u.username || decode(sp.admin_option, 'YES', ' with grant option') || ';' as "-- system_grants" from dba_sys_privs sp join dba_users u on sp.grantee=u.username where sp.grantee in ('SCHEMA') order by sp.GRANTEE;
+
+/*grant de objetos do banco dos usuários*/
+select 'grant '|| tp.privilege || ' on ' || tp.owner || '.' || tp.table_name ||' to '|| u.username || decode(grantable, 'YES', ' with grant option') || ';' as "-- db_object_grants" from dba_tab_privs tp join dba_users u on tp.grantee=u.username where tp.grantee in ('SCHEMA') order by tp.GRANTEE;
+
+/*grant das colunas de objetos dos usuários*/
+select 'grant '|| cp.privilege || '(' || cp.column_name || ') on ' || cp.owner || '.' || cp.table_name || ' to ' || u.username ||';' as "-- col_objects_grants" from dba_col_privs cp join dba_users u on cp.grantee=u.username where cp.grantee in ('SCHEMA') order by cp.GRANTEE;
+
+/*elmininar as conexões dos usuários*/
+ SELECT DISTINCT 'ALTER SYSTEM KILL session '''||s.sid||','||S.SERIAL#||',@'||S.INST_ID||''' immediate;' as "-- kill_sessions" FROM gv$session s WHERE username in ('SCHEMA');
+
+ /*elmininar os usuários*/
+select 'DROP USER '||username||' CASCADE;' as "--drop_cascade" from dba_users where username in ('SCHEMA');
+
+-- Grants de sistema e tabela de uma role
+select * from dba_sys_privs where grantee='DBA';
+select * from dba_role_privs where grantee='DBA';
+select * from dba_tab_privs where grantee='DBA';
+
+-- extrair grants de tabela e sistema da role
+select 'grant '||privilege||' to '||grantee||';' FROM DBA_SYS_PRIVS WHERE GRANTEE='RS_PONTO_CORREGEDORIA_GERENTE';
+select 'grant '||privilege||' on '||owner||'.'||table_name||' to '||grantee||';' FROM DBA_TAB_PRIVS WHERE GRANTEE='RS_PONTO_CORREGEDORIA_GERENTE';
+
+-- Scripts para dar grant para roles de consulta e de DML
+SELECT
+    'GRANT SELECT ON "'||OWNER||'"."'||OBJECT_NAME||'" TO RL_CONSULTA_SIGATDM;' as "--script"
+FROM
+    DBA_OBJECTS
+WHERE
+    OWNER = 'SIGATDM'
+    AND OBJECT_TYPE IN ('SEQUENCE', 'VIEW', 'MATERIALIZED VIEW','TABLE');
+
+SELECT
+    'GRANT INSERT, UPDATE, DELETE ON "'||OWNER||'"."'||OBJECT_NAME||'" TO RL_DML_SIGATDM;'  as "--script"
+FROM
+    DBA_OBJECTS
+WHERE
+    OWNER = 'SIGATDM'
+    AND OBJECT_TYPE = 'TABLE';
+
+-- Script para apagar roles sem grant
+select 'drop role '||role||';'
+from (
+    select distinct r.role from dba_roles r left join dba_tab_privs p on r.role=p.grantee
+    minus
+    select distinct r.role from dba_roles r right join dba_tab_privs p on r.role=p.grantee
+    )
+where role like 'RL_%';
+	
+-- coletar as squences
+SELECT 'create sequence "'||sequence_owner||'"."'||sequence_name||'" minvalue '||min_value||' maxvalue '||max_value||' increment by '||increment_by||' start with '||last_number||decode(cache_size,0,' NOCACHE',' CACHE '||cache_size)||' '||decode(order_flag,'N',' NOORDER')||decode(cycle_flag,'N',' NOCYCLE')||' nopartition;'
+from dba_Sequences
+where sequence_name like('SEQ_%')
+and sequence_owner not in ('XDB','ORDDATA','MDSYS','ANONYMOUS','APEX_030200','APEX_040200','APEX_PUBLIC_USER','APPQOSSYS','AUDSYS','CTXSYS','DBSNMP','DIP','EXFSYS\,\FLOWS_FILES','GSMADMIN_INTERNAL','GSMCATUSER','GSMUSER','MDSYS\,\MGMT_VIEW','OJVMSYS','OLAPSYS\,\OPS','ORACLE_OCM\,\ORDDATA\,\ORDPLUGINS\,\ORDSYS\,\OUTLN\,\OWBSYS','OWBSYS_AUDIT','PDBADMIN','SI_INFORMTN_SCHEMA\,\SPATIAL_CSW_ADMIN_USR','SPATIAL_WFS_ADMIN_USR','SYS','SYSBACKUP','SYSDG','SYSKM','SYSMAN','SYSTEM','TSMSYS','XDB\,\XS','WMSYS','WKPROXY','WK_TEST')
+and sequence_owner not in ('ESCRITORIO_DIGITAL')
+order by sequence_owner;
+
+-- unlock account
+alter user rogeriorlo account unlock;
+
+-- alterar profile
+alter user user_name profile default
+
+select username, profile, account_status from dba_users where username='pagm670';
+select password from sys.user$ where name='pagm670';
+alter user pagm670 identified by "teste#123";
+alter user pagm670 profile default;
+alter user pagm670 identified by "teste123";
+alter user pagm670 identified by values '9fe7be712520c97f';
+alter user pagm670 profile cti;
+
+-- recuperar senha encriptografada
+select password from sys.user$ where name='usuario';
+select extract(xmltype(dbms_metadata.get_xml('user','&username')),'//user_t/password/text()').getstringval() as pw_hash from dual;
+
+-- alterar senha encriptografada
+alter user usuario identified by values '3cee03b07b40edd5';
+
+-- alterar senha
+alter user user_name identified by new_password;
+
+-- senha expira no primeiro acessos
+alter user user_name password expire
+alteração é feita somente pelo sqlplus
+
+-- ver usuário logado na sessão (minha sessão)
+col username format a20
+col osuser format a20
+col program format a20
+select username,status,osuser,program from v$session where audsid = SYS_CONTEXT('USERENV','sessionid');
+select db_sisconferencia.sq_tipo_beneficio.nextval from dual;
+
+
+-- alterar a sessão para outro usuário
+ALTER SESSION SET CURRENT_SCHEMA=<SCHEMA>
+
+-- DST_UPGRADE_STATE DATAPUMP
+ALTER SESSION SET EVENTS '30090 TRACE NAME CONTEXT FOREVER, LEVEL 32';
+exec dbms_dst.unload_secondary;
+ALTER SESSION SET EVENTS '30090 TRACE NAME CONTEXT FOREVER, OFF';
+
+-- verificar bloqueio de usuário SEI na tabela audit session com sysdate -7
+SELECT
+  TO_CHAR(TIMESTAMP,'DD/MM HH24:MI') TIMESTAMP,
+  OS_USERNAME,
+  USERNAME,
+  USERHOST,
+  TERMINAL,
+  ACTION_NAME,
+  RETURNCODE
+FROM
+  SYS.DBA_AUDIT_SESSION
+WHERE
+  USERNAME LIKE 'SEI%'
+  AND TIMESTAMP BETWEEN SYSDATE-7 AND SYSDATE
+ORDER BY
+  TIMESTAMP DESC;
+  
+RETURNCODE=0 indicates success
+RETURNCODE=1017 indicates bad password
+RETURNCODE=28000 indicates account is locked out
+
+-- verificar última alteração na tabela (DML)
+select to_timestamp(timestamp) from dba_tab_modifications where table_owner = 'DB_BOLSAATLETA' and table_name = 'TB_PAGAMENTO';
+
+select max(ora_rowscn), scn_to_timestamp(max(ora_rowscn)) from DB_BOLSAATLETA.TB_PAGAMENTO;
+
+SELECT TABLE_OWNER, 
+   TABLE_NAME, 
+   INSERTS,
+   UPDATES,
+   DELETES,
+   TIMESTAMP AS LAST_CHANGE
+FROM  DBA_TAB_MODIFICATIONS
+WHERE TO_CHAR(TIMESTAMP,'DD/MM/YYYY') = TO_CHAR(sysdate,'DD/MM/YYYY')
+AND TABLE_OWNER = 'DB_BOLSAATLETA'
+ORDER BY LAST_CHANGE DESC;
+
+-- verificar usuários com status ativo no banco
+select * from v$session where status = 'active';
+select s.username, s.osuser, s.sid, s.serial#, p.spid, s.status, s.machine, s.program, to_char(s.logon_time,'dd-mon-yyyy hh24:mi:ss') as logon_time from v$session s inner join v$process p on s.paddr = p.addr where s.status = 'active' and s.type <> 'background';
+
+-- criar tabela para armazenamento das sessões do usuário
+create table dba_mds.sessoes_expansaobf as
+select b.sid sid, 
+       b.serial# serial,
+       c.spid pid, 
+       b.osuser osuser, 
+       b.username username, 
+       b.program nom_programa,
+       b.status status_sessao,
+       a.sql_text sql_command
+  from v$sqltext a, v$session b, v$process c
+where a.address = b.sql_address and b.paddr = c.addr and a.hash_value = b.sql_hash_value
+      and b.sid in (select sid from v$session where username like 'EXPANSAOBF%');
+
+-- verificar usuarios, acessos e número de conexões
+select (machine), username,count(username) from gv$session where username is not null group by username,machine order by 3;
+
+--  verificar o max connection no oracle, ou máximo de conexões
+select current_utilization, limit_value from v$resource_limit where resource_name='sessions';
+
+-- contar o número de acessos nos últimos 30 dias
+select
+    count(*)
+from
+    DBA_HIST_ACTIVE_SESS_HISTORY
+where
+    sample_time > sysdate - 31
+    and user_id in (
+        select user_id from dba_users where username like '%JOVEM%');
+
+-- verificar conexões do usuário
+select inst_id,sid,username,osuser,sql_id,sql_hash_value,machine,program,event,wait_class,seconds_in_wait from gv$session where status = 'active' and username is not null order by 1,11 desc;
+select s.username, s.status, s.sid, s.serial#, p.spid from v$session s, v$process p where s.username!='null' and p.addr (+) = s.paddr;
+
+-- matar sessões de usuário e matar suas sessões
+alter system kill session 'sid,serial#' immediate;
+
+-- mudar para a sessão do schema do usuário
+ALTER SESSION SET CURRENT_SCHEMA=SCHEMA
+
+-- Remover logs anteriores a uma data
+find log_* ! -mtime -1 | xargs rm
+
+-- fazer backup do trace dpf05p1
+tar -zcvf bkp_trace-`date +%d%m%y`.tar.gz /trace/diag/rdbms/dpf05p/dpf05p1/trace/*
+
+-- Procurar por processos mortos no sistema operacional
+lsof |grep deleted
+for proc in `lsof |grep deleted | awk '{print $2}'` ; do kill -9 $proc; echo "Morto - $proc"; done
+lsof | awk '$9 ~ /\/trace\// {system("if ! [ -e " $9 " ]; then kill -HUP " $2 " ; fi ")}'
+
+-- Procurar processos de SO no banco de dados
+select * from gv$session a, gv$process b where a.paddr=b.addr and b.spid in (30768);
+
+SELECT s.inst_id, s.sid, s.serial#, p.spid, s.username, s.program FROM   gv$session s JOIN gv$process p ON p.addr = s.paddr AND p.inst_id = s.inst_id WHERE  s.type != 'BACKGROUND';
+
+-- Procurar arquivos com mais de 10 gigas na partição trace e depois limpar
+for file in `find /trace -type f -size +10G -exec ls -lh {} \; | awk '{print $9}'`;do > $file;done
+
+-- Procurar diretório com muitos inodes
+find . -printf "%h\n" | cut -d/ -f-2 | sort | uniq -c | sort -rn
+
+-- uptime do banco
+select to_char(startup_time,'DD/MM/RR HH24:MI:SS') started,round(sysdate - startup_time,0) days_up from v$instance;
+
+-- Última alteração na tabela:
+select owner,object_name,object_type,created,last_ddl_time,timestamp from dba_objects where owner = 'PGHAR109' order by 5 desc;
+
+-- contagem constraints
+select constraint_type as "CONSTR",count(*) as "CONT" from dba_constraints where owner ='BARREIRASCOMERCIAIS' and constraint_type = 'P' group by constraint_type
+union
+select constraint_type,count(*) from dba_constraints where owner ='BARREIRASCOMERCIAIS' and constraint_type = 'F' group by constraint_type
+union
+select constraint_type,count(*) from dba_constraints where owner ='BARREIRASCOMERCIAIS' and constraint_type = 'C' group by constraint_type
+union
+select constraint_type,count(*) from dba_constraints where owner ='BARREIRASCOMERCIAIS' and constraint_type = 'R' group by constraint_type
+union
+select constraint_type,count(*) from dba_constraints where owner ='BARREIRASCOMERCIAIS' and constraint_type = 'O' group by constraint_type
+union
+select constraint_type,count(*) from dba_constraints where owner ='BARREIRASCOMERCIAIS' and constraint_type = 'V' group by constraint_type
+union
+select constraint_type,count(*) from dba_constraints where owner ='BARREIRASCOMERCIAIS' and constraint_type = 'H' group by constraint_type
+union
+select constraint_type,count(*) from dba_constraints where owner ='BARREIRASCOMERCIAIS' and constraint_type = 'S' group by constraint_type
+union
+select constraint_type,count(*) from dba_constraints where owner ='BARREIRASCOMERCIAIS' and constraint_type = 'U' group by constraint_type;
+
+-- contagem de objetos
+select object_type as "TIPO_OBJ",count(*) as "CONT" from dba_objects where object_type = 'TABLE' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'INDEX' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'PROCEDURE' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'PACKAGE' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'PACKAGE BODY' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'FUNCTION' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'LOB' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'SEQUENCE' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'SYNONYM' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'CLUSTER' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'TABLE PARTITION' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'SCHEDULE' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'RULE SET' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'EDITION' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'TYPE BODY' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'TRIGGER' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'RULE' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'INDEXTYPE' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'CONTEXT' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'DIRECTORY' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'TABLE SUBPARTITION' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'CONSUMER GROUP' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'RESOURCE PLAN' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'DESTINATION' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'EVALUATION CONTEXT' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'LIBRARY' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'INDEX PARTITION' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'JOB CLASS' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'QUEUE' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'UNDEFINED' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'PROGRAM' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'CONTAINER' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'TYPE' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'OPERATOR' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'WINDOW' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'SCHEDULER GROUP' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'VIEW' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'LOB PARTITION' and owner = 'BARREIRASCOMERCIAIS' group by object_type
+union
+select object_type,count(*) from dba_objects where object_type = 'UNIFIED AUDIT POLICY' and owner = 'BARREIRASCOMERCIAIS' group by object_type;
+
+-- objetos inválidos
+select
+owner,
+decode(object_type,null,'===========================>',object_type) as "OBJECT_TYPE",
+count(object_type) as "TOTAL",
+decode(grouping(owner),0,null,1,'Total de objectos invalidos.') as " "
+from dba_objects where status <> 'VALID'
+group by rollup (owner, object_type)
+order by owner, object_type desc
+
+-- compilando-os
+select 'alter'||' '|| object_type ||' '||owner ||'.'|| object_name || ' compile;' from dba_objects where status='INVALID' order by object_type, object_name,owner;
+
+select comando from (select 'alter package ' || owner || '.' || object_name || ' compile body;' comando, created from dba_objects where status = 'INVALID' and object_type = 'PACKAGE BODY'
+union select 'alter ' || object_type || ' ' || owner || '.'  || object_name || ' compile;' comando, created from dba_objects where status = 'INVALID' and object_type <> 'PACKAGE BODY' order by created)
+where not comando like '%SYNONYM PUBLIC%'
+union select ' alter public SYNONYM ' || object_name || ' compile;' comando from dba_objects where status = 'INVALID' and owner = 'PUBLIC' and object_type = 'SYNONYM'
+/
+
+-- coletar DDL dos objetos
+SELECT DBMS_METADATA.GET_DDL('MATERIALIZED_VIEW','MV_SALDO_POR_CONTA_CORRENTE','SUAS') FROM DUAL;
+select * from dba_source;
+SELECT DBMS_METADATA.get_ddl (object_type, object_name, owner) FROM dba_objects WHERE object_type = 'SYNONYM' AND owner like 'AGSP%' AND status = 'INVALID';
+
+-- script para comparar grants de uma instância com a outra:
+select 'grant '||privilege||' to "'||grantee||'";'
+ from (
+ select *
+ from dba_sys_privs@dpf06p
+ minus
+ select *
+ from dba_sys_privs);
+ 
+ select 'grant '||privilege||' on '||owner||'.'||table_name||' to "'||grantee||'";'
+ from (
+ select *
+ from dba_tab_privs@dpf06p
+ minus
+ select *
+ from dba_tab_privs);
+ 
+ select *
+ from (
+ select 'grant '||granted_role||' to "'||grantee||'";'
+ from dba_role_privs@dpf06p
+ minus
+ select 'grant '||granted_role||' to "'||grantee||'";'
+ from dba_role_privs);
+
+-- Compilando synonyms
+select 'create or replace synonym '||s.owner||'.'||s.SYNONYM_NAME||' for '||s.TABLE_OWNER||'.'||s.TABLE_NAME||';' from dba_objects o, dba_synonyms s where o.owner=s.owner and o.object_name=s.SYNONYM_NAME and o.status = 'INVALID' and o.object_type = 'SYNONYM'; 
+
+-- verificando synonyms sinônimos
+select a.owner banco, a.object_name objeto, a.object_type tipo, b.owner usuario, b.object_name objeto_sinonimo, b.object_type tipo_s 
+from dba_objects a left join dba_objects b on a.object_name = b.object_name
+where a.owner = 'DB_COOPERA_TST' and a.object_type in ('SEQUENCE','TABLE') and b.object_type='SYNONYM' and b.owner = 'USR_COOPERA_TST';
+
+-- Refresh mviews
+conn mview					 nhy6tfc
+exec dbms_mview.refresh ('TB_TIPODOC','?')
+
+-- plano de execução - explain plan
+explain plan for select * from dual;
+select * from table(dbms_xplan.display);
+SELECT * FROM table(DBMS_XPLAN.DISPLAY_CURSOR('sql_id',0));
+
+-- exportando e importando banco (http://docs.oracle.com/cd/E11882_01/server.112/e22490/dp_import.htm#SUTIL922)
+(http://dba-oracle.com/t_oracle_expdp_tips.htm)
+exportar:
+expdp userid=\'/ as sysdba\' dumpfile=bidpf.dmp schemas=bidpf directory=bkpdir logfile=bidpf.log content=metadata_only -- só estrutura
+expdp userid=\'/ as sysdba\' dumpfile=APIPNR100_2.dmp schemas=APIPNR100 directory=bkpdir logfile=APIPNR100_expdp_2.log rows=n
+expdp userid=\'/ as sysdba\' dumpfile=fir14810.dmp schemas=fir14810 directory=bkpdir cluster=n compression=all consistent=y logfile=fir14810.log -- sem cluster, comprimido, consistente
+expdp userid=\'/ as sysdba\' dumpfile=10138318.dmp schemas=anotice100, ainterpolsyncusr, ainterpolwebusr, ainterpolwsusr directory=bkpdir parallel=4 cluster=n compression=all consistent=y logfile=10138318.log
+expdp userid=\'/ as sysdba\' parfile=expdp_dpf06p.par  -- /u02/dtpump/
+expdp userid=\'/ as sysdba\' dumpfile=bkpdir:expdp_dpf06h1%U.dmp,bkpdir:expdp_dpf06h2%U.dmp,bkpdir:expdp_dpf06h3%U.dmp directory=bkpdir LOGFILE=bkpdir:expdp_dpf06p.log FILESIZE=20G SCHEMAS=ACARGACORP,ACFORMACAO,ACIPAEUSR CLUSTER=N COMPRESSION=ALL PARALLEL=4 CONSISTENT=Y
+expdp henrique/henrique@dpf05p tables=TB_PASSAPORTE_SERVIDOR directory=bkpdir dumpfile=tbpassaporteservidor.dmp logfile=tbpassaporteservidor.log
+expdp exp/proxy directory=export dumpfile=expdp_DBSIGA_SEP_%U.dmp logfile=expdp_DBSIGA_SEP_.log schemas=DB_SIGA parallel=12 cluster=no access_method=external_table remap_data=DB_SIGA.TBL_ANEXO.AR_ANEXO:db_manutencao.pkg_remap_blob_null.blob_null remap_data=DB_SIGA.TBL_ARQUIVO_EXTRATO.AR_EXTRATO:db_manutencao.pkg_remap_blob_null.blob_null remap_data=DB_SIGA.TBL_ARQUIVO_SIAFI.AR_SIAFI_LI:db_manutencao.pkg_remap_blob_null.blob_null remap_data=DB_SIGA.TBL_ARQUIVO_SIAFI.AR_SIAFI_NE:db_manutencao.pkg_remap_blob_null.blob_null remap_data=DB_SIGA.TBL_ARQUIVO_SICONV.AR_SICONV:db_manutencao.pkg_remap_blob_null.blob_null remap_data=DB_SIGA.TBL_FICHA_EMPENHO.AR_FICHA:db_manutencao.pkg_remap_blob_null.blob_null​
+expdp userid=\'/ as sysdba\' FLASHBACK_TIME="2021/10/2008:00:00" DIRECTORY=DUMP_EXP SCHEMAS=DB_BOLSAATLETA DUMPFILE=expdp_DB_BOLSAATLETA.dmp LOGFILE=expdp_DB_BOLSAATLETA_PROD.log CONTENT=ALL
+expdp \"sys@PDB_APEX as sysdba\" FULL=YES DUMPFILE=expfull.dmp
+
+importar (salvar senha e grants - dropar - recriar antes de importar)
+create tablespace apipnr100d datafile '+dg01p/dpf05p/datafile/apipnr100d1.dbf' size 32000m autoextend off;
+create user apipnr100 identified by "h23uvb,4" profile sistemas default tablespace apipnr100d;
+create user apipnrusr identified by "t!?]ljal" profile sistemas default tablespace apipnr100d;
+impdp userid=\'/ as sysdba\' dumpfile=fir14810.dmp directory=bkpdir remap_tablespace=users:apipnr100d remap_schema=fir14810:apipnr100 logfile=fir14810.log
+impdp userid=\'/ as sysdba\' dumpfile=10138318.dmp directory=bkpdir logfile=10138318.log
+impdp userid=\'/ as sysdba\' dumpfile=asincre100.dmp directory=bkpdir parallel=10 cluster=n logfile=asincre100_imp.log
+impdp userid=\'/ as sysdba\' dumpfile=bkpdir:expdp_dpf06h101.dmp,bkpdir:expdp_dpf06h201.dmp,bkpdir:expdp_dpf06h301.dmp,bkpdir:expdp_dpf06h102.dmp PARALLEL=8 cluster=n directory=bkpdir LOGFILE=bkpdir:impdp_dpf06h.log
+impdp userid=\'/ as sysdba\' remap_schema=HENRIQUE:PJMA0035 directory=bkpdir dumpfile=tbpassaporteservidor.dmp logfile=tbpassaporteservidor_imp.log
+impdp henrique.santos@pdbhml01 dumpfile=admauditar_v2_dadmtse.dmp directory=DUMP_DIR remap_schema=ADMAUDITAR_V2:AUDITAR remap_tablespace=AUDITAR2_SEG:AUDITAR_DATA logfile=admauditar_v2_dadmtse.log
+
+-- verificar o que está importando no impdp
+sqlfile=metadata.sql
+
+-- EXP e IMP (exportar em .sql)
+exp \'/ as sysdba\' file=/tmp/SISPROM.dmp owner=SISPROM grants=n statistics=none rows=n
+imp \'/ as sysdba\' file=/tmp/SISPROM.dmp fromuser=SISPROM touser=SISPROM indexfile=/tmp/SISPROM.sql
+vim /tmp/SISPROMV.sql
+
+-- DUMP consistente
+<11.2 - flashback_time=systimestamp
+>11.2 - consistent=y
+
+-- verificar onde o expdp está executando o job
+select * from DBA_DATAPUMP_JOBS;
+expdp exp/proxy attach=NOME_DO_JOB_EXECUTANDO
+
+DECLARE
+   h1 NUMBER;
+   BEGIN
+      h1:=DBMS_DATAPUMP.ATTACH('SYS_EXPORT_FULL_01','EXP');
+      DBMS_DATAPUMP.STOP_JOB (h1, 1, 0);
+   END;
+/
+
+-- eliminar o job via expdp ou impdp
+CTRL + C
+STOP_JOB=IMMEDIATE
+ou
+KILL_JOB
+
+-- auditoria de ddl no MDS
+select * from dba_mds.tb_log_ddl;
+
+-- exportar consulta sql para uma tabela
+set feed off
+set markup html on spool on
+spool export_select.xls                     
+select * from dual;
+spool off                           
+set markup html off
+set feed on
+
+-- criando e excluindo diretórios para dump
+create directory u01dir as '/u01/dtpump';
+drop directory u01dir;
+
+-- tamanho dos redologs
+SELECT
+ a.GROUP#,
+ a.THREAD#,
+ a.SEQUENCE#,
+ a.ARCHIVED,
+ a.STATUS,
+ b.MEMBER AS REDOLOG_FILE_NAME,
+ (a.BYTES/1024/1024) AS SIZE_MB
+FROM v$log a
+JOIN v$logfile b ON a.Group#=b.Group#
+ORDER BY a.GROUP#;
+
+-- Adicionando novos grupos de redo 
+ALTER DATABASE ADD LOGFILE GROUP 7
+    ('+DATA/mds/redo/redo_mds_07_01.rdo', '+DATA/mds/redo/redo_mds_07_02.rdo', '+DATA/mds/redo/redo_mds_07_03.rdo')
+    SIZE 400M;
+
+-- Adicionando membros aos grupos de redologs
+ALTER DATABASE ADD LOGFILE MEMBER '+DATA/mds/redo/redo_mds_04_03.rdo' REUSE to GROUP 4;
+
+-- erro dataguard (standby)
+FAL[client]: Failed to request gap sequence
+ GAP - thread 1 sequence 83906-84005
+ DBID 1788211386 branch 986869836
+
+verificar se houve backup das sequências acima:
+list backup of archivelog from  logseq 83906 until logseq 84005;
+
+se sim, restaurar:
+restore archivelog from logseq 83906 until logseq 84005;
+
+metalink: https://www.oracle.com/technetwork/pt/articles/database-performance/resolucao-redo-gap-part2-2396294-ptb.html
+
+-- ligando replicação:
+alter database recover managed standby database disconnect nodelay;
+
+-- desligando replicação:
+ALTER DATABASE RECOVER MANAGED STANDBY DATABASE CANCEL;
+
+-- verificar se os archive logs foram transaferidos com sucesso ao standby (consultar no primário)
+select dest_id,status,error from v$archive_dest where target='STANDBY';
+
+-- verificar a performance na transferência do arquivamento do standby:
+select dest_id,archiver,transmit_mode,affirm,net_timeout,delay_mins,async_blocks from v$archive_dest where target='STANDBY';
+
+-- verificar o número da sequencia atual, a última sequencia arquivada e a última sequencia aplicada ao standby:
+select ads.dest_id,
+       max(sequence#) "Current Sequence",
+       max(log_sequence) "Last Archived",
+       max(applied_seq#) "Last Sequence Applied"
+from v$archived_log al, v$archive_dest ad, v$archive_dest_status ads
+where ad.dest_id=al.dest_id
+and al.dest_id=ads.dest_id
+group by ads.dest_id;
+
+-- monitorando data guard
+https://valehagayev.wordpress.com/2016/07/09/dataguard-commands-and-sql-scripts/
+
+select (
+  case
+    when count(applied) <= 5 THEN 'OK'
+    when count(applied) >= 6 THEN 'FALHA' end
+  ) as "DG_STATUS"
+from
+  V$archived_log
+where
+  standby_dest='YES'
+  and completion_time > sysdate-1
+  and applied='NO';	
+	
+-- troubleshooting do data guard
+https://support.oracle.com/epmos/faces/DocumentDisplay?_afrLoop=386829929979593&id=237213.1&displayIndex=3&_afrWindowMode=0&_adf.ctrl-state=9baxtmz1h_199
+
+-- Verificando BLOB
+select owner, round(sum(bytes)/1024/1024/1024,2) from dba_segments where owner in ('APIPNR100', 'APROM100', 'ASIGAI100', 'ASINP100', 'ASTI100') group by owner order by 1;
+select a.owner, a.table_name, a.column_name, a.data_type, round(b.bytes/1024/1024/1024,3) gbytes from dba_tab_cols a, dba_segments b where a.owner = b.owner and a.table_name = b.segment_name and a.owner in ('APROM100', 'ASIGAI100', 'ASINP100', 'ASTI100') and a.data_type = 'BLOB' order by 1,2;
+
+-- Criar tabela com base nos dados de uma data anterior
+select
+'create table henrique.D_'||object_name||' as SELECT * FROM '||owner||'.'||object_name||' AS OF TIMESTAMP TO_TIMESTAMP(''2016-10-26 12:00'', ''YYYY-MM-DD HH24:MI'');'
+from dba_objects where owner = 'DICOR' and object_type ='TABLE';
+
+-- Desabilitar constraints
+select 'alter table '||owner||'.'||table_name||' disable constraint '||constraint_name||';' from dba_constraints where constraint_type = 'R' and owner in ('AXWIKI100', 'CGTI', 'DICOR');
+
+--- Truncar tabelas
+SELECT  'TRUNCATE TABLE ' || OWNER || '.' ||  OBJECT_NAME || ';' AS SQL FROM DBA_OBJECTS WHERE OBJECT_TYPE = 'TABLE' AND OWNER = 'ASEI100_TREINO' and object_name  NOT IN ('VEICULO_IMPRENSA_NACIONAL','UNIDADE','TITULO');
+ 
+--- Habilitar constraints
+SELECT 'ALTER TABLE ' || OWNER || '.' || TABLE_NAME || ' ENABLE CONSTRAINT ' || CONSTRAINT_NAME || ';' FROM  DBA_CONSTRAINTS WHERE CONSTRAINT_TYPE = 'R' AND OWNER = 'ASEI100_TREINO';
+
+-- Informações sobre tablespace e datafile
+select
+    t.tablespace_name,
+    t.status,
+    d.status avail,
+    round(d.user_bytes/1024/1024/1024,0) use_gb,
+    round(d.maxbytes/1024/1024/1024,0) max_gb,
+    t.bigfile,
+    d.autoextensible
+from
+    dba_tablespaces t join dba_data_files d on t.tablespace_name=d.tablespace_name
+where 
+    t.tablespace_name like '%CADASTRO_DIARIO%';
+
+-- Mover datafile para outro diskgroup
+ALTER DATABASE MOVE DATAFILE '+DATA_HOT/MDS2/DATAFILE/tbs_auditoria_lob.265.1025451455' TO '+DATA';
+
+-- Migração de objetos por tablespaces em uso:
+select 'alter index ' || owner || '.' || segment_name || ' rebuild tablespace axwiki;' index_move
+from dba_segments where owner = 'DICOR' and tablespace_name = 'USERS' and segment_type = 'INDEX';
+select 'alter table ' || owner || '.' || segment_name || ' move tablespace axwiki;' table_move
+from dba_segments where owner = 'DICOR' and tablespace_name = 'USERS';
+select 'alter user DICOR default tablespace axwiki;' from dual;
+* Pode ser feito via remap_tablespace
+
+-- Checar se os índices do DB_SIGA estão nas tablespaces de índices e gerar script para rebuild
+select owner, table_owner, table_name, table_type, index_name, index_type, uniqueness, tablespace_name from dba_indexes where tablespace_name not like 'TI_%' and index_type not like '%IOT%' and index_name not like 'SYS%' and owner like 'DB\_%' escape '\' order by owner;
+select 'alter index '||owner||'."'||index_name||'" rebuild tablespace TI'|| ltrim(tablespace_name,'TD') ||';' from dba_indexes where tablespace_name not like 'TI_%' and index_name not like 'SYS%' and owner like 'DB\_%' escape '\' order by owner;
+
+-- Realizar migração de MySQL ou PostgreSQL para Oracle utilizando SQL Developer
+01 - Possuir driver JDBC do MySQL ou PostgreSQL
+02 - Adicionar no Developer (Ferramentas > Preferências > Banco de Dados > Drivers JDBC de Terceiros > Adicionar Entrada)
+03 - Adicionar conexão com o outro SGDB (Nova Conexão > String de Conexão utilizando a aba do SGDB correto)
+04 - Realizar Migração (Ferramentas > Migrar > Migrar)
+05 - Realizar o passo-a-passo do utilitário
+06 - Detalhe: Não migrar diretamente, pois o schema vai com o nome de origem
+
+-- verificar tempo de retenção (minutos) do flashback
+show parameter retention;
+NAME                          TYPE    VALUE  
+----------------------------- ------- ------ 
+db_flashback_retention_target integer 4320   
+
+-- Flashback Query (SELECT ... AS OF)
+select PASSWORD from sys.USER$ AS OF TIMESTAMP TO_TIMESTAMP('11/07/2017 16:00:00','DD/MM/YYYY:HH24:MI:SS') where NAME = 'DB_SEMINARIO_INTERNACIONAL';
+
+-- Voltar o banco inteiro  no tempo (sem realmente alterar). A sessão fica em readonly
+execute dbms_flashback.enable_at_time(to_timestamp('08/07/2020 20:00','DD/MM/YYYY HH24:MI'));	
+
+-- Para desabilitar e voltar ao tempo normal
+execute dbms_flashback.disable;
+
+-- Flashback de tabela eliminada
+FLASHBACK TABLE flashback_drop_test TO BEFORE DROP;
+
+-- verificar queries e tempo de execução
+SELECT sess.process, sess.status, sess.username, sess.schemaname, sql.sql_text, OSUSER, sql.elapsed_time / 1000000 as TEMPO_DE_EXECUCAO_SQL
+FROM gv$session sess, gv$sql sql
+WHERE sql.sql_id(+) = sess.sql_id AND sess.type = 'USER' AND sql.elapsed_time IS NOT NULL
+ORDER BY sess.status, sql.elapsed_time DESC;
+
+select sid, serial#, username, to_char(sysdate-last_call_et/24/60/60,'hh24:mi:ss') started,
+trunc(last_call_et/60) || ' mins, ' || mod(last_call_et,60) || 
+' secs' dur,
+ (select sql_text from v$sql where address = sql_address ) sql_text
+ from v$session
+ where username is not null
+ and last_call_et > 5*60
+ and status = 'ACTIVE'
+/
+
+-- verificar sessões com alto consumo de cpu
+select s.sid, s.serial#, p.spid as "os pid",s.username, s.module, st.value/100 as "cpu sec"
+from v$sesstat st, v$statname sn, v$session s, v$process p
+where sn.name = 'cpu used by this session' -- cpu
+and st.statistic# = sn.statistic#
+and st.sid = s.sid
+and s.paddr = p.addr
+and s.last_call_et < 1800 -- active within last 1/2 hour
+and s.logon_time > (sysdate - 240/1440) -- sessions logged on within 4 hours
+order by st.value;
+
+select * from v$session;
+select rownum as rank, a.*
+from (
+SELECT v.sid,sess.Serial# ,sess.username,sess.machine,program,sess.status,sess.sql_id, v.value / (100 * 60) CPUMins
+FROM v$statname s , v$sesstat v, v$session sess
+WHERE s.name = 'CPU used by this session'
+and sess.sid = v.sid
+and v.statistic#=s.statistic#
+and v.value>0
+ORDER BY v.value DESC) a
+where rownum < 21;
+
+-- verificar sessões com alto tempo de uso de banco de dados
+select s.sid, s.serial#, p.spid as "os pid", s.username, s.module, st.value/100 as "db time (sec)"
+, stcpu.value/100 as "cpu time (sec)", round(stcpu.value / st.value * 100,2) as "% cpu"
+from v$sesstat st, v$statname sn, v$session s, v$sesstat stcpu, v$statname sncpu, v$process p
+where sn.name = 'db time' -- cpu
+and st.statistic# = sn.statistic#
+and st.sid = s.sid
+and  sncpu.name = 'cpu used by this session' -- cpu
+and stcpu.statistic# = sncpu.statistic#
+and stcpu.sid = st.sid
+and s.paddr = p.addr
+and s.last_call_et < 1800 -- active within last 1/2 hour
+and s.logon_time > (sysdate - 240/1440) -- sessions logged on within 4 hours
+and st.value > 0;
+
+- Verificar alertas e sugestões para solução de problemas 
+select object_type, message_type, message_level, reason, suggested_action from dba_outstanding_alerts;
+
+-- Jobs do oracle
+select * from dba_jobs;
+select * from dba_scheduler_jobs;
+
+-- Jobs em execução
+select * from dba_scheduler_running_jobs;
+select * from dba_scheduler_running_chains;
+
+-- verificar se job apresentou erro
+select * from dba_scheduler_job_log where status <> 'SUCCEEDED' order by LOG_DATE desc;
+select * from dba_scheduler_job_run_details where LOG_ID = '4864156';
+select * from DBA_SCHEDULER_JOB_RUN_DETAILS where owner not in ('SYS','EXFSYS','ORACLE_OCM','APEX_040200','DBSNMP') and status != 'SUCCEEDED' and actual_start_date > sysdate-1;
+select job,schema_user,to_char(last_date,'dd-mm-yyyy hh24:mi:ss') last_date,to_char(next_date,'dd-mm-yyyy hh24:mi:ss') next_date,broken,interval,failures,what from dba_jobs order by 5;
+
+-- reexecução de jobs
+@jobs
+conn mvadmin  -- conectar como mvadmin nhy6tfc
+exec dbms_snapshot.refresh('SUAS.MV_REPASSES_PORTARIA378_COVID','C');
+exec dbms_snapshot.refresh('tb_sso_login','c');
+exec dbms_refresh.refresh('gr_fast');
+exec dbms_job.run(648);
+
+-- verificar os grupos de sincronização (atualização/renovação)
+select rowner,rname as grupo,job,to_char(next_date,'dd-mm-yyyy hh24:mi:ss')next_date,interval,broken,refgroup from dba_refresh;
+select rowner,rname,owner,name,job,to_char(next_date,'dd-mm-yyyy hh24:mi:ss')next_date,interval,broken from dba_refresh_children order by rname;
+
+-- Copiando jobs de um owner para outro
+select 'exec dbms_scheduler.copy_job(''GUSTAVOMB.'||job_name||''',''DBA_MDS.'||job_name||''');' from dba_scheduler_jobs where owner='GUSTAVOMB';
+
+-- Parando jobs
+EXEC DBMS_SCHEDULER.STOP_JOB (job_name => 'DBA_MDS.JOB_REFRESH_MVIEWS_DAILY');
+EXEC DBMS_SCHEDULER.STOP_JOB (job_name => 'DBA_MDS.JOB_REFRESH_MVIEWS_DAILY', force => TRUE);
+
+-- desabilitar jobs
+SELECT 'EXEC dbms_scheduler.disable (''' || owner || '.' || job_name || ''');'
+    FROM dba_scheduler_jobs
+    WHERE enabled = 'TRUE'
+    ORDER BY owner, job_name;	
+
+-- Apagando/Purging Job Logs Manualmente
+exec DBMS_SCHEDULER.PURGE_LOG(log_history => 10, job_name => 'job1');
+
+-- verificar qual instância conectada
+select * from v$instance;
+
+-- tamanho dos schemas (evolução)
+select * from SYS.TBL_SCHEMA_GROWTH order by 1 desc;
+select * from sys.vw_schema_growth;
+
+-- verificar tamanho de um schema
+select
+owner,
+round((byte_count/1024/1024),2) "space|used|Mb",
+round(100*(byte_count/tot_bytes),2) "pct|of|Database"
+from
+(select owner,
+sum(bytes) as byte_count
+from sys.dba_segments
+where segment_type not in ('TEMPORARY','CACHE') and owner = '&schema'
+group by owner
+order by 2 desc),
+(select sum(bytes) as tot_bytes
+from sys.dba_segments);
+
+-- verificar tamanho das tablespace
+SELECT t.tablespace
+      ,t.totalspace AS " Totalspace(MB)"
+       ,round((t.totalspace - fs.freespace), 2) AS "Used Space(MB)"
+       ,fs.freespace AS "Freespace(MB)"
+       ,round(((t.totalspace - fs.freespace) / t.totalspace) * 100, 2) AS "% Used"
+       ,round((fs.freespace / t.totalspace) * 100, 2) AS "% Free"
+  FROM (SELECT round(SUM(d.bytes) / (1024 * 1024)) AS totalspace
+              ,d.tablespace_name tablespace
+          FROM dba_data_files d
+         GROUP BY d.tablespace_name) t
+      ,(SELECT round(SUM(f.bytes) / (1024 * 1024)) AS freespace
+              ,f.tablespace_name tablespace
+          FROM dba_free_space f
+         GROUP BY f.tablespace_name) fs
+WHERE t.tablespace = fs.tablespace
+ORDER BY t.tablespace;
+
+-- verificar tamanho da tablespace temp
+select
+ d.tablespace_name,
+ nvl (a.bytes/1024/1024,0) size_mb,
+ nvl (t.bytes/1024/1024,0) used_mb,
+ round (nvl (t.bytes/a.bytes*100,0),2) as pct_used
+from
+ sys.dba_tablespaces d,
+ (select
+   tablespace_name,
+   sum(bytes) bytes
+  from dba_temp_files
+  group by tablespace_name) a,
+ (select
+   ss.tablespace_name,
+   sum ((ss.used_blocks * ts.blocksize)) bytes
+  from gv$sort_segment ss,sys.ts$ ts
+  where ss.tablespace_name =ts.name
+  group by ss.tablespace_name)t
+where
+ d.tablespace_name = a.tablespace_name(+)
+ and d.tablespace_name=t.tablespace_name(+)
+ and d.extent_management like 'local'
+ and d.contents like 'temporary'
+order by 1;
+
+-- verificar tablespace
+select file_id,tablespace_name,file_name,bytes/1024/1024/1024 gb,autoextensible
+from dba_data_files
+where tablespace_name='&tablespace_name'
+order by 1,3,2;
+
+select * from 
+(select * from dba_tablespace_usage_metrics order by 4 desc)
+where rownum <6;
+
+-- Informações sobre tablespaces
+select * from v$datafile
+
+-- script para verificar tablespaces com potencial de economizar espaço
+
+select file_name,
+          ceil( (nvl(hwm,1)*8192)/1024/1024 ) smallest,
+          ceil( blocks*8192/1024/1024) currsize,
+          ceil( blocks*8192/1024/1024) -
+          ceil( (nvl(hwm,1)*8192)/1024/1024 ) savings
+   from dba_data_files a,
+        ( select file_id, max(block_id+blocks-1) hwm
+            from dba_extents
+           group by file_id ) b
+   where a.file_id = b.file_id(+)
+   order by 3
+   /
+
+-- Aumentar espaço em tablespaces
+@tbs
+alter database datafile 289 resize 75G;
+alter tablespace asinp100 add datafile '+dg01p/dpf05p/datafile/asinp100264.dbf' size 32768M autoextend off;
+alter tablespace TS_AUXILIO_EMERGENCIAL_DATA add datafile size 1024M autoextend on next 1024M maxsize 31744M;
+alter tablespace AGSPPRC100D add datafile '+DG01P/dpf06tb/datafile/agspprc100d09.dbf' size 1024M autoextend on next 1024M maxsize 32768M;
+alter tablespace temp add tempfile size 1024M autoextend on next 1024M maxsize 32768M;
+create tablespace AUDITAR_DATA datafile size 1G autoextend on next 1G maxsize 32G;
+alter database tempfile '+dg02p/dpf03p/datafile/temp01.dbf' resize 32768M;
+
+-- verificar tamanho atual, total utilizado e disponivel para resize
+SELECT * FROM (
+	SELECT
+		FILE_NAME DATAFILE,
+		CEIL((NVL(HWM,1)*8192)/1024/1024) SMALLEST,
+		CEIL(BLOCKS*8192/1024/1024) CURRSIZE,
+		CEIL(BLOCKS*8192/1024/1024) - CEIL((NVL(HWM,1)*8192)/1024/1024) SAVINGS
+	FROM
+			DBA_DATA_FILES DBADF,
+			(SELECT FILE_ID, MAX(BLOCK_ID+BLOCKS-1) HWM FROM DBA_EXTENTS GROUP BY FILE_ID) DBAFS
+	WHERE
+			DBADF.FILE_ID = DBAFS.FILE_ID(+)
+	ORDER BY SAVINGS)
+WHERE SAVINGS >= 1000;
+
+-- verificar tablespaces sem uso (vazias) e gerar script para drop
+select
+    'drop tablespace '||tablespace_name||' including contents and datafiles;' as script
+from
+    (select distinct tablespace_name from dba_data_files
+    minus
+    select distinct tablespace_name from dba_segments
+    minus
+    select distinct default_tablespace from dba_users);
+	
+-- script para armazenar DDL das tablespaces não utilizadas. (GERAR DDL)
+DECLARE
+    V_TABLESPACE VARCHAR2(200);
+    V_RESULTADO VARCHAR2(2000);
+CURSOR C_TABLESPACE IS 
+   SELECT TABLESPACE_NAME
+   FROM (SELECT DISTINCT TABLESPACE_NAME FROM DBA_DATA_FILES
+        MINUS
+        SELECT DISTINCT TABLESPACE_NAME FROM DBA_SEGMENTS
+        MINUS
+        SELECT DISTINCT DEFAULT_TABLESPACE FROM DBA_USERS);
+BEGIN
+     FOR V_TABLESPACE IN C_TABLESPACE LOOP
+        SELECT DBMS_METADATA.GET_DDL('TABLESPACE',''||V_TABLESPACE.TABLESPACE_NAME||'') INTO V_RESULTADO FROM DUAL;
+        DBMS_OUTPUT.PUT_LINE(V_RESULTADO);
+     END LOOP;
+END;
+/
+
+-- script para coletar DDL dos jobs:
+select 'select dbms_metadata.get_ddl(''PROCOBJ'', '''||job_name||''', ''GUSTAVOMB'') from dual;' from dba_scheduler_jobs where owner = 'GUSTAVOMB';
+
+-- verificar objetos ou users usando a temp tablespace
+select t1.inst_id,t1.username,t1.sql_id,t1.tablespace,t1.segtype, t2.sid,t1.session_num as serial#, sum(t1.blocks*8192/1024/1024) as size_mb_temp
+from gv$tempseg_usage t1,gv$session t2
+where t1.session_num=t2.serial# and t2.saddr=t1.session_addr and t1.inst_id=t2.inst_id
+group by t1.inst_id,t1.username, t1.sql_id, t1.tablespace,t1.segtype,t2.sid,t1.session_num
+order by size_mb_temp desc;
+
+-- verificar o uso em MB da FRA
+set lines 100
+col name format a60
+select name,floor(space_limit / 1024 / 1024 / 1024) "Size GB",ceil(space_used / 1024 / 1024 / 1024) "Used GB" from v$recovery_file_dest; 
+
+-- verificar o que tem na FRA
+select * from v$flash_recovery_area_usage;
+ 
+-- verificar a localização e o tamanho da FRA
+show parameter db_recovery_file_dest
+ 
+-- verificar tamanho, o uso e se é possível recuperar espaço da FRA
+select
+  round((a.space_limit / 1024 / 1024 / 1024), 2) as flash_in_gb, 
+  round((a.space_used / 1024 / 1024 / 1024), 2) as flash_used_in_gb, 
+  round((a.space_reclaimable / 1024 / 1024 / 1024), 2) as flash_reclaimable_gb,
+  sum(b.percent_space_used)  as percent_of_space_used
+from
+  v$recovery_file_dest a,
+  v$flash_recovery_area_usage b
+group by
+  space_limit, 
+  space_used , 
+  space_reclaimable;
+ 
+-- realizar resize da FRA
+alter system set db_recovery_file_dest_size=500G;
+ 
+-- mudar a localização da FRA
+alter system set db_recovery_file_dest='/export/...';
+
+-- verificar se tem owner com objeto fora de sua tablespace
+select owner,tablespace_name
+from dba_segments
+where owner not in ('SYS','SYSTEM','OUTLN','WMSYS','DBSNMP','EXFSYS','CTXSYS','XDB','ORDSYS','ORDDATA','MDSYS','OLAPSYS','SYSMAN','APEX_030200','APEX_040200','AUDSYS','DVSYS','GSMADMIN_INTERNAL','LBACSYS','OJVMSYS')
+and tablespace_name not like (owner||'_DATA')
+and tablespace_name not like (owner||'_INDEX')
+group by owner,tablespace_name
+order by tablespace_name;
+
+-- verificar todos os arquivos do banco
+select name from v$controlfile
+union all
+select name from v$tempfile
+union all
+select name from v$dbfile
+union all
+select member from v$logfile;
+
+-- verificar qual disco está sendo usado pelo ASM no linux
+/etc/init.d/oracleasm querydisk -d DISK00
+Disk "DISK00" is a valid ASM disk on device [8,16]
+ls -l /dev/* | grep 8, | grep 16
+brw-rw----   1 root disk      8,  16 Sep 14 17:50 /dev/sdb
+
+-- similar ao powerpath
+MDS\henrique.ssantos@rhorpd01:~> sudo /sbin/multipath -ll
+
+-- conceder grant para o usuário admin às tabelas de sistema
+EXECUTE rdsadmin.rdsadmin_util.grant_sys_object(p_obj_name => 'DBA_OBJECTS', p_grantee => 'ADMIN', p_privilege => 'SELECT', p_grant_option => true);
+
+-- Gerar xml do banco de dados
+EXEC DBMS_PDB.DESCRIBE(pdb_descr_file=>'/tmp/nonCDB_to_PDB.xml');
+
+-- metadata da aws (export e import)
+https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Oracle.Procedural.Importing.DataPump.html
+
+-- Realizar o upload de tudo o que tem no DATA_PUMP_DIR para o S3
+SELECT rdsadmin.rdsadmin_s3_tasks.upload_to_s3(
+      p_bucket_name    =>  'psql-devel', 
+      p_s3_prefix      =>  'backup/', 
+      p_prefix         =>  'barreiras.dmp', 
+      p_directory_name =>  'DATA_PUMP_DIR') 
+   AS TASK_ID FROM DUAL;
+
+-- Realizar o download de dump do S3 para o DATA_PUMP_DIR
+SELECT rdsadmin.rdsadmin_s3_tasks.download_from_s3(
+  p_bucket_name    =>  'psql-devel',
+  p_s3_prefix      =>  'backup/',
+  p_directory_name =>  'DATA_PUMP_DIR')
+AS TASK_ID FROM DUAL;
+
+-- Consultar o andamento
+SELECT * FROM table(rdsadmin.rds_file_util.read_text_file('BDUMP', 'dbtask-1725390647034-55.log'));
+
+-- ler arquivo de log
+SELECT * FROM TABLE (rdsadmin.rds_file_util.read_text_file(
+p_directory => 'DATA_PUMP_DIR',
+p_filename  => 'SISPROMV3_03092024.log'));
+
+-- Listar DATA_PUMP_DIR
+SELECT * FROM TABLE(rdsadmin.rds_file_util.listdir('DATA_PUMP_DIR')) ORDER BY MTIME;
+
+-- Apagar arquivo no DATA_PUMP_DIR
+EXEC UTL_FILE.FREMOVE('DATA_PUMP_DIR','filename');
+
+-- Apagar todos os arquivos no DATA_PUMP_DIR
+begin for i in (select filename from table(RDSADMIN.RDS_FILE_UTIL.LISTDIR('MY_DIR')) where type='file') loop UTL_FILE.FREMOVE ('DATA_PUMP_DIR', i.filename); end loop; end; /
+
+-- exportar dump na aws
+DECLARE
+  v_hdnl NUMBER;
+BEGIN
+  v_hdnl := DBMS_DATAPUMP.OPEN(
+    operation => 'EXPORT', 
+    job_mode  => 'SCHEMA', 
+    job_name  => null
+  );
+  DBMS_DATAPUMP.ADD_FILE( 
+    handle    => v_hdnl         , 
+    filename  => 'barreiras.dmp'   , 
+    directory => 'DATA_PUMP_DIR', 
+    filetype  => dbms_datapump.ku$_file_type_dump_file
+  );
+  DBMS_DATAPUMP.ADD_FILE( 
+    handle    => v_hdnl, 
+    filename  => 'barreiras.log', 
+    directory => 'DATA_PUMP_DIR' , 
+    filetype  => dbms_datapump.ku$_file_type_log_file
+  );
+  DBMS_DATAPUMP.METADATA_FILTER(v_hdnl,'SCHEMA_EXPR','IN (''BARREIRASCOMERCIAIS'')');
+  DBMS_DATAPUMP.METADATA_FILTER(
+    v_hdnl,
+    'EXCLUDE_NAME_EXPR',
+    q'[IN (SELECT NAME FROM SYS.OBJ$ 
+           WHERE TYPE# IN (66,67,74,79,59,62,46) 
+           AND OWNER# IN 
+             (SELECT USER# FROM SYS.USER$ 
+              WHERE NAME IN ('RDSADMIN','SYS','SYSTEM','RDS_DATAGUARD','RDSSEC')
+             )
+          )
+    ]',
+    'PROCOBJ'
+  );
+  DBMS_DATAPUMP.START_JOB(v_hdnl);
+END;
+/
+
+-- importar na aws
+DECLARE
+  v_hdnl NUMBER;
+BEGIN
+  v_hdnl := DBMS_DATAPUMP.OPEN( 
+    operation => 'IMPORT', 
+    job_mode  => 'SCHEMA', 
+    job_name  => null);
+  DBMS_DATAPUMP.ADD_FILE( 
+    handle    => v_hdnl, 
+    filename  => 'SISPROMV3_03092024.dmp', 
+    directory => 'DATA_PUMP_DIR', 
+    filetype  => dbms_datapump.ku$_file_type_dump_file);
+  DBMS_DATAPUMP.ADD_FILE( 
+    handle    => v_hdnl, 
+    filename  => 'SISPROMV3_03092024.log', 
+    directory => 'DATA_PUMP_DIR', 
+    filetype  => dbms_datapump.ku$_file_type_log_file);
+  DBMS_DATAPUMP.METADATA_FILTER(v_hdnl,'SCHEMA_EXPR','IN (''SISPROMV3'')');
+  DBMS_DATAPUMP.START_JOB(v_hdnl);
+END;
+/
+
+
+-- verificar espaço em disco AWS RDS
+select
+'===========================================================' || chr(10) ||
+'Total Database Physical Size = ' || round(redolog_size_gb+dbfiles_size_gb+tempfiles_size_gb+ctlfiles_size_gb,2) || ' GB' || chr(10) ||
+'===========================================================' || chr(10) ||
+' Redo Logs Size : ' || round(redolog_size_gb,3) || ' GB' || chr(10) ||
+' Data Files Size : ' || round(dbfiles_size_gb,3) || ' GB' || chr(10) ||
+' Temp Files Size : ' || round(tempfiles_size_gb,3) || ' GB' || chr(10) ||
+' Archive Log Size - Approx only : ' || round(archlog_size_gb,3) || ' GB' || chr(10) ||
+' Control Files Size : ' || round(ctlfiles_size_gb,3) || ' GB' || chr(10) ||
+'===========================================================' || chr(10) ||
+' Used Database Size : ' || used_db_size_gb || ' GB' || chr(10) ||
+' Free Database Size : ' || free_db_size_gb || ' GB' ||chr(10) ||
+' Data Pump Directory Size : ' || dpump_db_size_gb || ' GB' || chr(10) ||
+' BDUMP Directory Size : ' || bdump_db_size_gb || ' GB' || chr(10) ||
+' ADUMP Directory Size : ' || adump_db_size_gb || ' GB' || chr(10) ||
+'===========================================================' || chr(10) ||
+'Total Size (including Dump and Log Files) = ' || round(round(redolog_size_gb,2) +round(dbfiles_size_gb,2)+round(tempfiles_size_gb,2)+round(ctlfiles_size_gb,2) +round(adump_db_size_gb,2) +round(dpump_db_size_gb,2)+round(bdump_db_size_gb,2),2) || ' GB' || chr(10) ||
+'===========================================================' as summary
+FROM (SELECT sys_context('USERENV', 'DB_NAME')
+db_name,
+(SELECT SUM(bytes) / 1024 / 1024 / 1024 redo_size
+FROM v$log)
+redolog_size_gb,
+(SELECT SUM(bytes) / 1024 / 1024 / 1024 data_size
+FROM dba_data_files)
+dbfiles_size_gb,
+(SELECT nvl(SUM(bytes), 0) / 1024 / 1024 / 1024 temp_size
+FROM dba_temp_files)
+tempfiles_size_gb,
+(SELECT SUM(blocks * block_size / 1024 / 1024 / 1024) size_gb
+FROM v$archived_log
+WHERE first_time >= SYSDATE - (
+(SELECT value
+FROM rdsadmin.rds_configuration
+WHERE name =
+'archivelog retention hours') /
+24 ))
+archlog_size_gb,
+(SELECT SUM(block_size * file_size_blks) / 1024 / 1024 / 1024
+controlfile_size
+FROM v$controlfile)
+ctlfiles_size_gb,
+round(SUM(used.bytes) / 1024 / 1024 / 1024, 3)
+db_size_gb,
+round(SUM(used.bytes) / 1024 / 1024 / 1024, 3) - round(
+free.f / 1024 / 1024 / 1024)
+used_db_size_gb,
+round(free.f / 1024 / 1024 / 1024, 3)
+free_db_size_gb,
+(SELECT round(SUM(filesize) / 1024 / 1024 / 1024, 3)
+FROM TABLE(rdsadmin.rds_file_util.listdir('BDUMP')))
+bdump_db_size_gb,
+(SELECT round(SUM(filesize) / 1024 / 1024 / 1024, 3)
+FROM TABLE(rdsadmin.rds_file_util.listdir('ADUMP')))
+adump_db_size_gb,
+(SELECT round(SUM(filesize) / 1024 / 1024 / 1024, 3)
+FROM TABLE(rdsadmin.rds_file_util.listdir('DATA_PUMP_DIR')))
+dpump_db_size_gb
+FROM (SELECT bytes
+FROM v$datafile
+UNION ALL
+SELECT bytes
+FROM v$tempfile) used,
+(SELECT SUM(bytes) AS f
+FROM dba_free_space) free
+GROUP BY free.f);
+
+-- verificar diskgroups
+select  name, round(total_mb/1024,2) total_gb, round(free_mb/1024,2) free_gb, round(100*(1-(free_mb/total_mb)),0) "Use Percent %" from v$asm_diskgroup;
+
+-- ver o espaço em disco da máquina (diskgroups)
+select group_number, name, state, total_mb, free_mb, total_mb-free_mb as used_mb, trunc(((total_mb-free_mb)*100)/case when total_mb = 0 then 1 else total_mb end,2) as "%_used", required_mirror_free_mb, usable_file_mb,
+case when trunc(((total_mb-free_mb)*100)/case when total_mb = 0 then 1 else total_mb end,2) > 97 then 'critical' else 'normal' end situacao
+from v$asm_diskgroup
+order by 7 desc;
+
+-- Mostra todos os alias para cada grupo de disco montado pela instância ASM
+SELECT name ,group_number ,file_number ,file_incarnation ,alias_index ,alias_incarnation ,parent_index ,reference_index ,alias_directory ,system_created FROM v$asm_alias;
+
+-- Lista cada disco descoberto pela instância ASM, incluindo discos que não fazem parte de nenhum grupo de discos ASM
+SELECT group_number ,disk_number ,name ,total_mb ,compound_index ,incarnation ,mount_status ,header_status ,mode_status ,state ,redundancy ,path FROM v$asm_disk;
+SELECT group_number ,disk_number ,mount_status ,total_mb ,free_mb ,reads ,(bytes_read / (1024*1024)) mb_read ,read_errs ,read_time ,writes ,write_errs ,write_time FROM v$asm_disk;
+
+-- Descreve informações sobre grupos de discos ASM montado pela instância ASM
+SELECT group_number ,name ,sector_size ,block_size ,allocation_unit_size au_size ,state ,type ,total_mb ,free_mb FROM v$asm_diskgroup;
+
+-- Lista cada arquivo ASM em cada grupo de discos ASM montado pela instância ASM
+SELECT group_number ,file_number ,compound_index ,incarnation ,block_size ,blocks , (bytes / (1024*1024)) bytes_mb ,(space / (1024*1024)) space_alloc_mb ,type ,redundancy ,striped ,creation_date ,modification_date FROM v$asm_file ;
+
+-- Mostra cada operação ASM de longa duração na instância ASM
+SELECT group_number ,operation ,state ,power ,actual ,est_work ,sofar ,est_rate ,est_minutes FROM v$asm_operation;
+
+-- Lista cada template presente em cada grupo de discos ASM montado pela instância ASM
+SELECT group_number ,entry_number ,redundancy ,stripe ,system ,name FROM v$asm_template;
+
+-- Script para verificar se existe a possibilidade de realizar um RESIZE para liberar espaço em disco no sistema operacional:
+select 'alter database datafile ''' || file_name || ''' resize ' || ceil( (nvl(hwm,1)*8192*1.2)/1024/1024 )  || 'm;' cmd from dba_data_files a, ( select file_id, max(block_id+blocks-1) hwm from dba_extents group by file_id ) b where a.file_id = b.file_id(+) and ceil( (nvl(hwm,1)*8192*1.2)/1024/1024 ) < ceil( blocks*8192/1024/1024) and ceil( (nvl(hwm,1)*8192*1.2)/1024/1024 ) > 100;
+
+select file_name,
+      ceil( (nvl(hwm,1)*8192)/1024/1024 ) smallest,
+      ceil( blocks*8192/1024/1024) currsize,
+      ceil( blocks*8192/1024/1024) -
+      ceil( (nvl(hwm,1)*8192)/1024/1024 ) savings,
+      ceil( (nvl(hwm,1)*8192*1.2)/1024/1024 ) smallest_safe,
+      ceil( blocks*8192/1024/1024) -
+      ceil( (nvl(hwm,1)*8192*1.2)/1024/1024 ) savings_safe
+from dba_data_files a,
+    ( select file_id, max(block_id+blocks-1) hwm
+        from dba_extents
+       group by file_id ) b
+where a.file_id = b.file_id(+)
+ and ceil( (nvl(hwm,1)*8192*1.2)/1024/1024 ) < ceil( blocks*8192/1024/1024)
+ and ceil( (nvl(hwm,1)*8192*1.2)/1024/1024 ) > 100
+order by 4 desc;
+select 'alter database datafile ''' || file_name || ''' resize ' ||
+      ceil( (nvl(hwm,1)*8192*1.2)/1024/1024 )  || 'm;' cmd
+from dba_data_files a,
+    ( select file_id, max(block_id+blocks-1) hwm
+        from dba_extents
+       group by file_id ) b
+where a.file_id = b.file_id(+)
+ and ceil( (nvl(hwm,1)*8192*1.2)/1024/1024 ) < ceil( blocks*8192/1024/1024)
+ and ceil( (nvl(hwm,1)*8192*1.2)/1024/1024 ) > 100
+ /
+
+-- conferir DB_BLOCK_SIZE para o comando acima:
+select name, value from v$parameter where name = 'db_block_size';
+
+-- verificando tipos de ACL do schema
+SELECT host,lower_port,upper_port,acl FROM dba_network_acls;
+
+-- verificando grant de ACL do schema
+
+SELECT acl,
+       principal,
+       privilege,
+       is_grant,
+       TO_CHAR(start_date, 'DD-MON-YYYY') AS start_date,
+       TO_CHAR(end_date, 'DD-MON-YYYY') AS end_date
+FROM   dba_network_acl_privileges;
+
+-- Fragmentação de índices
+Rodar
+analyze index DB_PCF.IDX_VISITA_01 validate structure;
+Depois
+select round((del_lf_rows/lf_rows)*100,2) ratio, height, lf_rows, lf_blks from index_stats;
+Se:
+- o ratio é maior que 20%
+- o height é maior ou igual a 4
+- o lf_rows é menor que lf_blks
+reconstruir o índice
+
+-- verificando status de índices particionados
+SELECT i.table_name,  i.index_name, ip.partition_name,
+       i.status AS index_status, ip.status AS partition_status
+  FROM dba_indexes i
+       JOIN dba_ind_partitions ip
+         ON (i.index_name = ip.index_name )
+  where i.owner = 'CORPORATIVO'
+ ORDER BY i.table_name, i.index_name, ip.partition_name;
+
+-- reconstruíndo índices particionados
+select
+    *
+    -- 'alter index "'||index_owner||'"."'||index_name||'" rebuild partition "'||partition_name||'" parallel 25;' script
+from
+    dba_ind_partitions
+where
+    index_owner = 'CORPORATIVO'
+    and status <> 'USABLE';
+	
+-- verificar índices problemáticos
+select owner,index_name,index_type,table_name,blevel,status from dba_indexes where owner not in ('sys','system') and (status!='valid' or blevel>3);
+
+-- alterar tablespace do index
+
+select 'alter index "'||owner||'"."'||index_name||'" rebuild tablespace "'||owner||'_INDEX";'
+from dba_indexes
+where owner = 'AUDITAR';
+
+select 'alter index "'||owner||'"."'||index_name||'" rebuild;'
+from dba_indexes
+where owner = 'AUDITAR';
+
+-- Overificar se FK de um schema possui índices (fk sem index)
+select
+case
+    when b.table_name is null then 'sem indice' else 'indexada' end as status,
+    a.table_name      as table_name,
+    a.constraint_name as fk_name,
+    a.fk_columns      as fk_columns,
+    b.index_name      as index_name,
+    b.index_columns   as index_columns
+from
+    (select 
+        a.table_name,
+        a.constraint_name,
+        listagg(a.column_name, ',') within
+        group (order by a.position) fk_columns
+    from
+        dba_cons_columns a,
+        dba_constraints b
+    where
+        a.constraint_name = b.constraint_name
+        and b.constraint_type = 'R'
+        and a.owner = '&&schema'
+        and a.owner = b.owner
+    group by 
+        a.table_name, 
+        a.constraint_name
+    ) a,
+    (select 
+        table_name,
+        index_name,
+        listagg(c.column_name, ',') within
+        group (order by c.column_position) index_columns
+    from
+        dba_ind_columns c
+    where 
+        c.index_owner = '&&schema'
+    group by
+        table_name, 
+        index_name
+    ) b
+where
+    a.table_name = b.table_name(+)
+    and b.index_columns(+) like a.fk_columns || '%'
+order by 
+    1 desc, 2;
+
+-- Mascaramento de dados (mascarar)
+SELECT REVERSE(TRANSLATE(UPPER('<DADO>'),'ABCDEFGHIJKLMNOPQRSTUVZWYX','XYWZVUTSRQPONMLKJIHGFEDCBA')) FROM DUAL 
+
+-- Verificar o status do listener lsnrctl
+$ORACLE_HOME/bin/lsnrctl status
+mais sobre: http://www.dba-oracle.com/tips_oracle_lsnrctl.htm
+
+-- Verificar o status do network no cluster
+crs stat -t
+
+-- Verificar o status do agent do enterprise manager emctl
+*** profile do grid
+/u01/agent12c/agent_inst/bin/emctl status agent
+ps -ef | grep core --> em um que está funcionando para descobrir o agent
+/u01/agent12c/core/12.1.0.3.0/bin/emctl status agent
+
+-- Corrigir o problema de erro de métrica do enterprise manager emctl
+. profile_grid
+/u01/agent12c/agent_inst/bin/emctl status agent
+/u01/agent12c/agent_inst/bin/emctl stop agent
+/u01/agent12c/agent_inst/bin/emctl clearstate agent (em alguns casos, somente este comando resolve)
+-- /u01/agent12c/agent_inst/bin/emctl secure agent (precisa de senha)
+/u01/agent12c/agent_inst/bin/emctl config agent addinternal targets
+/u01/agent12c/agent_inst/bin/emctl config agent addinternaltargets
+/u01/agent12c/agent_inst/bin/emctl config agent listtargets
+/u01/agent12c/agent_inst/bin/emctl start agent
+/u01/agent12c/agent_inst/bin/emctl upload agent
+/u01/agent12c/agent_inst/bin/emctl status agent
+
+-- Apresentando disco para o ASM criando um diretório:
+-- para localizar a LUN disponibilizada
+powermt display dev=all
+-- consultar os comandos echo abaixo
+echo "- - -" > /sys/class/scsi_host/host6/scan
+echo "- - -" > /sys/class/scsi_host/host3/scan
+echo "- - -" > /sys/class/scsi_host/host4/scan
+echo "- - -" > /sys/class/scsi_host/host5/scan
+powermt check
+powermt config
+powermt display dev=all
+fdisk -l | grep doesn
+Verificar o disco o usuário root:
+Nó 01
+[root@sdf0370 ~]# ls /dev/sdp*
+/dev/sdp
+[root@sdf0370 ~]# fdisk -l /dev/sdp
+[root@sdf0370 ~]# fdisk /dev/sdp
+Command (m for help): n
+p   primary partition (1-4): p
+Partition number (1-4): 1
+First cylinder (1-26108, default 1): <enter> Using default value 1
+Last cylinder or +size or +sizeM or +sizeK (1-26108, default 26108): <enter> Using default value 26108
+Command (m for help): w
+[root@sdf0370 ~]# ls /dev/sdp*
+/dev/sdp  /dev/sdp1
+[root@sdf0370 ~]# oracleasm scandisks
+Nó 02
+[root@sdf0371 ~]# ls /dev/sdp*
+/dev/sdp  /dev/sdp1
+[root@sdf0371 ~]# oracleasm scandisks 
+Nó 01
+[root@sdf0370 ~]# oracleasm createdisk DADOS_002 /dev/sdp1
+Writing disk header: done
+Instantiating disk: done
+Nó 02
+[root@sdf0371 ~]# oracleasm scandisks 
+Reloading disk partitions: done
+Cleaning any stale ASM disks...
+Scanning system for ASM disks...
+Instantiating disk "DADOS_002"
+
+-- Adicionando o disco no diskgroup:
+[oracle@sdf0371 ~]$ . profile_grid 
+[oracle@sdf0371 ~]$ cd carbonera
+[oracle@sdf0371 carbonera]$ sqlplus / as sysasm
+SQL> @disks
+SQL> alter diskgroup DG_DADOS add disk 'ORCL:DADOS_002';
+Diskgroup altered.
+SQL> @diskgroups -- para checar
+SQL> @disks -- para checar
+Balanceamento de dados:
+SQL> show parameter power
+NAME				     TYPE	 VALUE
+------------------------------------ ----------- ------------------------------
+asm_power_limit 		     integer	 11
+SQL> select * from v$asm_operation; 
+GROUP_NUMBER OPERA STAT      POWER     ACTUAL	   SOFAR   EST_WORK   EST_RATE EST_MINUTES ERROR_CODE
+------------ ----- ---- ---------- ---------- ---------- ---------- ---------- ----------- --------------------------------------------
+	   4 REBAL RUN		11	   11	    8233       8233	     0		 0
+aumentar poder de rebalanceamento
+ALTER DISKGROUP DATA REBALANCE POWER 15;
+
+-- Gerenciador de logs de diagnóstico: ADRCI - Automatic Diagnostic Repository Command Interpreter
+Ele faz: View diagnostic data no Automatic Diagnostic Repository (ADR); View Health Monitor reports; Package incident and problem information into a zip file for transmission to Oracle Support.
+adrci> show home
+Visualizando as mensagens do alertlog:
+show alert -term -p "MESSAGE_TEXT like '%ORA%' and ORIGINATING_TIMESTAMP > '2024-04-11 10:00:00'"
+show alert -term -p "ORIGINATING_TIMESTAMP > '2023-10-21 00:00:00'"
+adrci> set home diag/rdbms/orcl/orcl
+adrci> show alert -tail –f
+Visualizando a lista de problemas ocorridos no banco de dados:
+adrci> set home diag/rdbms/orcl/orcl
+adrci> show problem
+Visualizando a lista de incidentes:
+adrci> show incident
+Visualizando com detalhes um incidente específico:
+adrci> show incident -mode detail -p "incident_id=33921"
+Visualizando o arquivo de trace do incidente acima:
+adrci> show trace /u01/app/oracle/diag/rdbms/orcl/orcl/incident/incdir_33921/orcl_ora_25872_i33921.trc 
+Visualizando os arquivos de trace que contenham a palavra mmon:
+adrci> SHOW TRACEFILE %mmon%
+Utilizando o IPS (Incident Packaging Service) para gerar um pacote a ser enviado para o suporte da Oracle com todos detalhes do problema ocorrido:
+adrci> ips create package problem 1 correlate all
+adrci> ips generate package 1 in "/tmp/oracle"
+Visualizando os arquivos gerados dentro do pacote:
+adrci> IPS SHOW FILES PACKAGE 1
+Visualizando por quanto tempo os arquivos serão mantidos no ADR:
+adrci> show control
+ADR Home = /u01/app/oracle/diag/rdbms/orcl/orcl:
+Por default, os arquivos de trace serão mantidos no ADR por 30 dias (720 horas) e os arquivos de incidente por um ano (8760 horas).
+Porém, é possível limpar manualmente, utilizando o comando PURGE:
+adrci> purge -age 24 -type trace
+Você também pode consultar o help do ADRCI e verificar mais comandos úteis:
+adrci> help
+https://veduardodba.wordpress.com/2012/01/16/adrci-nova-ferramenta-no-oracle-11g/
+http://www.oracle.com/technetwork/pt/articles/database-performance/automatic-diagnostic-repository-2417674-ptb.html
+
+-- listar quantas tabelas por owner
+select count(*), owner from all_tables where lower(owner) not in ('advantage', 'alexsousa', 'ctxsys', 'dbsnmp', 'direct','dmsys', 'exfsys', 'ifsctxtest0', 'ifsctxtest1', 'ifsctxtest2','ifsctxtest3','mdsys','olapsys','oracache', 'orddata', 'ordsys', 'outln', 'scott', 'settings', 'sys', 'sysman', 'system', 'wmsys','xdb') group by owner order by owner;
+
+-- contagem de objetos de usuário
+select count(object_type), object_type from dba_objects where owner in ('') group by object_type;
+
+-- Verificar alertlog pelo sql
+https://lilianbarroso.wordpress.com/2015/04/10/verificando-o-alert-log-via-sqlplus/
+
+select ORIGINATING_TIMESTAMP,message_text from alertlog where ORIGINATING_TIMESTAMP > (SYSDATE -1);
+select ORIGINATING_TIMESTAMP,message_text from alertlog where ORIGINATING_TIMESTAMP > (sysdate -0.2) order by 1 asc;
+
+-- Verificar detalhes dos backups do RMAN
+select start_time, round(output_bytes/1024/1024/1024,2) FROM V$RMAN_BACKUP_JOB_DETAILS where start_time > '05/09/21';
+
+-- Verificar o status do último backup do RMAN
+select (
+	case when status='COMPLETED' or status='RUNNING' then '1' else '0' end) as "BKP_STATUS"
+from
+	V$RMAN_STATUS
+where
+	end_time >= (
+		select max(end_time)
+		from V$RMAN_STATUS
+		where end_time > sysdate-1)
+	and operation in ('RMAN','BACKUP','BACKUP BACKUPSET');
+
+-- Consultar o log do RMAN:
+select session_stamp, output from v$rman_output where session_stamp = 1006623638;
+
+-- Consulta para verificar tempo estimado de término do restore rman
+select recid
+     , output_device_type
+     , dbsize_mbytes
+     , round(input_bytes/1024/1024/1024,3) input_gbytes
+     , round(output_bytes/1024/1024/1024,3) output_gbytes
+     , round((output_bytes/input_bytes*100),2) compression
+     , round((mbytes_processed/dbsize_mbytes*100),2) complete
+     , to_char(start_time + (sysdate-start_time)/(mbytes_processed/dbsize_mbytes),'DD-MON-YYYY HH24:MI:SS') est_complete
+  from v$rman_status rs
+     , (select 1500000 dbsize_mbytes from dual) 
+ where status='RUNNING'
+   and output_device_type is not null
+/
+
+-- Monitorando % de restore completo no RMAN
+TTITLE LEFT '% Completed. Aggregate is the overall progress:'
+SET LINE 132
+SELECT opname, round(sofar/totalwork*100) "% Complete"
+  FROM gv$session_longops
+ WHERE opname LIKE 'RMAN%'
+   AND totalwork != 0
+   AND sofar <> totalwork
+ ORDER BY 1;
+ 
+-- Monitorando os channels do rman que estão em espera no RMAN
+TTITLE LEFT 'Channels waiting:'
+COL client_info FORMAT A15 TRUNC
+COL event FORMAT A20 TRUNC
+COL state FORMAT A7
+COL wait FORMAT 999.90 HEAD "Min waiting"
+SELECT s.sid, p.spid, s.client_info, status, event, state, seconds_in_wait/60 wait
+  FROM gv$process p, gv$session s
+ WHERE p.addr = s.paddr
+   AND client_info LIKE 'rman%';
+   
+-- Monitorando os arquivos sendo restaurados pelo RMAN
+TTITLE LEFT 'Files currently being written to:'
+COL filename FORMAT a50
+SELECT filename, bytes, io_count
+  FROM v$backup_async_io
+ WHERE status='IN PROGRESS'
+/
+
+-- Monitorando o Throughput do rstore do RMAN
+TTITLE OFF
+SET HEAD OFF
+SELECT 'Throughput: '||
+       ROUND(SUM(v.value/1024/1024),1) || ' Meg so far @ ' ||
+       ROUND(SUM(v.value     /1024/1024)/NVL((SELECT MIN(elapsed_seconds)
+            FROM v$session_longops
+            WHERE opname          LIKE 'RMAN: aggregate input'
+              AND sofar           != TOTALWORK
+              AND elapsed_seconds IS NOT NULL
+       ),SUM(v.value     /1024/1024)),2) || ' Meg/sec'
+ FROM gv$sesstat v, v$statname n, gv$session s
+WHERE v.statistic# = n.statistic#
+  AND n.name       = 'physical write total bytes'
+  AND v.sid        = s.sid
+  AND v.inst_id    = s.inst_id
+  AND s.program LIKE 'rman@%'
+GROUP BY n.name
+/
+SET HEAD ON
+
+-- Script para realizar backup do ARCHIVELOG via RMAN
+export ORACLE_SID=dpf01p1
+$ORACLE_HOME/bin/rman TARGET / CATALOG rman11g/rman11g@rman
+run {
+backup archivelog all delete input tag 'ARCHIVE';
+delete noprompt archivelog all backed up 1 times to device type DISK;
+crosscheck archivelog all;
+}
+
+-- RMAN-08137: WARNING: archived log not deleted, needed for standby -- verificar se o procedimento é válido (gera erro no dataguard)
+RMAN> show all;
+CONFIGURE ARCHIVELOG DELETION POLICY TO NONE; # default
+RMAN> CONFIGURE ARCHIVELOG DELETION POLICY TO SHIPPED TO STANDBY;
+RMAN> show all;
+CONFIGURE ARCHIVELOG DELETION POLICY TO SHIPPED TO STANDBY;
+RMAN> delete noprompt archivelog all;
+RMAN> crosscheck archivelog all;
+RMAN> CONFIGURE ARCHIVELOG DELETION POLICY CLEAR;
+
+-- manutenção no catálogo de backups do rman
+run {
+allocate channel ch01 for maintenance type 'SBT_TAPE';
+delete obsolete;
+release channel ch01;
+
+-- Database Point-In-Time Recovery (DBPITR) e Tablespace Point-in-Time Recovery (TSPITR) na prática com o RMAN
+https://www.oracle.com/technetwork/pt/articles/database-performance/dbpitr-tspitr-rman-2227665-ptb.html
+http://dillidba.blogspot.com/2017/07/oracle-tablespace-point-in-time.html
+
+-- evolução tamanho tablespaces
+select * from alexsousa.tb_size_tbs where lower(tablespace) not in ('system', 'undo01', 'undo02', 'undotbs1', 'undotbs2','sysaux','users') order by data, bytes;
+
+-- job para alimentação da tabela de tamanho das tablespace
+create or replace procedure "alexsousa"."tamanho_tablespaces" is
+--#________________________________________________________________#
+--# identificacao #
+--#________________________________________________________________#
+--# nome do script : tamanho das tablespaces #
+--# numero:001 : #
+--# autor : alex de oliveira #
+--# data : 2-outubro-2013 #
+--#----------------------------------------------------------------#
+--# funcao:armazenar o tamanho das tablespaces para mensurar o #
+--# crescimento #
+--#________________________________________________________________#
+--# historico: #
+--#________________________________________________________________#
+--#obs: #
+--#________________________________________________________________#
+
+begin
+insert into alexsousa.tb_size_tbs (tablespace,bytes) select tablespace_name,sum(
+bytes) bytes from sys.dba_segments group by tablespace_name;
+commit;
+end;
+
+-- saber o owner do objeto:
+select owner, object_name from all_objects where object_name = 'objeto';
+
+-- criar dblink
+create database link rhorpd03 connect to henriquess identified by data123 using 'RHORPD03';
+
+rodar o script na base x apontando para a base y. no caso abaixo, criou o dblink do 2p para o 6p
+create public database link dpf06p.dpf.gov.br connect to mvadmin identified by "nhy6tfc" using 'dpf06p';
+create public database link dpf05ta.dpf.gov.br connect to mvadmin identified by "nhy6tfc" using 'dpf05ta';
+
+usar asinpl100 I_2fp+$0
+create database link dpf05ta.dpf.gov.br connect to SNP_ADABAS identified by "snp_adabas" using 'dpf05ta';
+usar astimar100 76w.qpcd
+create database link dpf05ta.dpf.gov.br connect to SPI_ADABAS identified by "spi_adabas" using 'dpf05ta';
+
+-- listar dblinks
+select * from dba_db_links;
+
+-- listar mviews 
+select owner, mview_name, query, master_link,updatable from dba_mviews;
+select * from all_mviews;
+
+-- estrutura de views
+select text from all_views where view_name = 'nome_da_view'
+
+-- dependência de views
+select distinct owner,name,referenced_owner
+from dba_dependencies
+where owner in ('SIGTV','SIGTR','DB_PCF')
+and type = 'VIEW'
+and referenced_owner <> owner
+order by 1;
+
+-- verificar tnsnames tnsping .ora
+tnsping instância 5
+
+-- verificar localização do spfile
+show parameters spfile
+
+-- copiar spfile para pfile
+create pfile='/tmp/pfile' from spfile;
+
+-- verificar se o parâmetro pode ser alterado de forma online ou precisa reiniciar
+select ISSYS_MODIFIABLE from V$PARAMETER where NAME='processes';
+
+-- Verificar os advisors (sugestões) no oracle de melhoria
+SELECT *  FROM DBA_ADVISOR_TASKS A
+INNER JOIN DBA_ADVISOR_FINDINGS B
+ON (A.TASK_ID = B.TASK_ID)
+WHERE FINDING_NAME IN ('SGA Subdimensionado','PGA Subdimensionado')
+ORDER BY A.EXECUTION_END DESC; 
+
+-- eliminar os arquivos de auditoria
+for file in *.aud; do rm "$file"; done
+
+-- gerar senha 12 dígitos
+select
+  trunc(dbms_random.value('0',9),0)||
+  dbms_random.string('a',2)||
+  trunc(dbms_random.value('0',9),0)||
+  dbms_random.string('a',3)||
+  trunc(dbms_random.value('0',9),0)||
+  dbms_random.string('a',2)||
+  trunc(dbms_random.value('0',9),0)||
+  dbms_random.string('a',1) senha
+from
+  dual;
+
+-- saber o endian format do database
+select tp.endian_format
+from v$transportable_platform tp, v$database sp
+where tp.platform_name = sp.platform_name;
+
+-- verificar objetos sem estatísticas
+SELECT * FROM sys.dba_tables WHERE last_analyzed IS NULL AND owner NOT IN ('SYS','SYSTEM') AND partitioned = 'NO';
+SELECT * FROM sys.dba_indexes WHERE last_analyzed IS NULL AND owner NOT IN ('SYS','SYSTEM') AND partitioned = 'NO';
+SELECT * FROM sys.dba_tab_partitions WHERE last_analyzed IS NULL AND table_owner NOT IN ('SYS','SYSTEM');
+SELECT * FROM sys.dba_ind_partitions WHERE last_analyzed IS NULL AND index_owner NOT IN ('SYS','SYSTEM');
+
+-- atualizar as estatísticas do schema
+EXECUTE DBMS_STATS.GATHER_SCHEMA_STATS('DB_AUXILIO_EMERGENCIAL');
+
+-- atualizar as estatísticas do schema
+EXECUTE DBMS_STATS.GENERATE_STATS ('DB_AUXILIO_EMERGENCIAL','TABELA');
+
+-- desbloquear estatísticas do schema
+exec dbms_stats.unlock_schema_stats('<schema_name>');
+
+-- desbloquear estatísticas da tabela
+exec DBMS_STATS.UNLOCK_TABLE_STATS('<schema-name>', '<table-name>');
+
+-- DBA_OBJECTS - LAST_DDL_TIME e TIMESTAMP
+A coluna LAST_DDL_TIME armazena a informação de data e horário sobre a última vez quando o objeto foi modificado por uma instrução DDL,
+incluindo alguns comandos que envolvam modificações no nível de extensões (extents) do segmento.
+Vale a pena salientar que essa modificação também vale para comandos DCL como (GRANT e REVOKE) que foram lançados sobre o objeto.
+Isso também vale para os objetos PL/SQL como functions, stored procedures, triggers, entre outros, incluindo-se o comando COMPILE executado sobre o mesmo.
+A coluna TIMESTAMP armazena a informação de data e horário sobre a última vez quando o objeto foi modificado,
+excluindo-se qualquer operação DCL (GRANT, REVOKE) e excluindo-se também alguns comandos DDL que afetem o objeto no nível de extensões (extents) do segmento.
+No caso de objetos PL/SQL, exclui-se também o comando COMPILE.
+
+-- verificar componentes carregados no banco de dados (APEX, JAVA, XML, RAC, OLAP), o status e a versão
+Select Comp_name, status, Version From Dba_Registry Order by Comp_name;
+
+-- purge shared pool 
+https://oracle-base.com/articles/misc/purge-the-shared-pool
+
+
+-- bloco para drop objetos do usuário
+DECLARE
+   v_schema_name VARCHAR2(30) := 'ADMIN';
+BEGIN
+   -- Eliminar tabelas
+   FOR rec IN (SELECT table_name FROM dba_tables WHERE owner = v_schema_name) LOOP
+      EXECUTE IMMEDIATE 'DROP TABLE "' || v_schema_name || '"."' || rec.table_name || '" CASCADE CONSTRAINTS';
+   END LOOP;
+
+   -- Eliminar visões
+   FOR rec IN (SELECT view_name FROM dba_views WHERE owner = v_schema_name) LOOP
+      EXECUTE IMMEDIATE 'DROP VIEW "' || v_schema_name || '"."' || rec.view_name || '"';
+   END LOOP;
+
+   -- Eliminar índices
+   FOR rec IN (SELECT index_name FROM dba_indexes WHERE owner = v_schema_name) LOOP
+      EXECUTE IMMEDIATE 'DROP INDEX "' || v_schema_name || '"."' || rec.index_name|| '"';
+   END LOOP;
+
+   -- Eliminar sinônimos
+   FOR rec IN (SELECT synonym_name FROM dba_synonyms WHERE owner = v_schema_name) LOOP
+      EXECUTE IMMEDIATE 'DROP SYNONYM "' || v_schema_name || '"."' || rec.synonym_name|| '"';
+   END LOOP;
+
+   -- Eliminar sequências
+   FOR rec IN (SELECT sequence_name FROM dba_sequences WHERE sequence_owner = v_schema_name) LOOP
+      EXECUTE IMMEDIATE 'DROP SEQUENCE "' || v_schema_name || '"."' || rec.sequence_name|| '"';
+   END LOOP;
+
+   -- Eliminar triggers
+   FOR rec IN (SELECT trigger_name FROM dba_triggers WHERE owner = v_schema_name) LOOP
+      EXECUTE IMMEDIATE 'DROP TRIGGER "' || v_schema_name || '"."' || rec.trigger_name|| '"';
+   END LOOP;
+
+   -- Eliminar procedures e functions
+   FOR rec IN (SELECT object_name FROM dba_objects WHERE owner = v_schema_name AND object_type = 'PROCEDURE') LOOP
+      EXECUTE IMMEDIATE 'DROP PROCEDURE "' || v_schema_name || '"."' || rec.object_name|| '"';
+   END LOOP;
+
+   FOR rec IN (SELECT object_name FROM dba_objects WHERE owner = v_schema_name AND object_type = 'FUNCTION') LOOP
+      EXECUTE IMMEDIATE 'DROP FUNCTION "' || v_schema_name || '"."' || rec.object_name|| '"';
+   END LOOP;
+
+   -- Eliminar packages
+   FOR rec IN (SELECT object_name FROM dba_objects WHERE owner = v_schema_name AND object_type = 'PACKAGE') LOOP
+      EXECUTE IMMEDIATE 'DROP PACKAGE "' || v_schema_name || '"."' || rec.object_name|| '"';
+   END LOOP;
+
+   -- Eliminar tipos (TYPE)
+   FOR rec IN (SELECT type_name FROM dba_types WHERE owner = v_schema_name) LOOP
+      EXECUTE IMMEDIATE 'DROP TYPE "' || v_schema_name || '"."' || rec.type_name|| '"';
+   END LOOP;
+
+END;
+/
+
+-- bloco para coletar grants de vários usuários
+
+DECLARE
+    CURSOR C_USUARIO IS
+        SELECT USERNAME TX_NOME_USUARIO
+            FROM (
+            SELECT USERNAME FROM DBA_USERS
+            MINUS
+            SELECT DISTINCT OWNER FROM DBA_SEGMENTS
+            ) WHERE USERNAME LIKE 'DB/_%' ESCAPE '/';
+    
+    OUT_SCRIPT_SAIDA CLOB;
+BEGIN
+
+    FOR C_DADOS IN C_USUARIO
+    LOOP
+        
+        FOR C_SAIDA_1 IN 
+        (   SELECT  'create user "'||S.NAME||DECODE(S.PASSWORD,'external','" identified externally','" identified by values '''||S.PASSWORD||'''')||
+                    'default tablespace '||U.DEFAULT_TABLESPACE||' temporary tablespace '||U.TEMPORARY_TABLESPACE||' profile '||U.PROFILE ||';' AS TX_SCRIPT
+            FROM SYS.USER$ S, DBA_USERS U
+            WHERE NAME=USERNAME
+            AND NAME IN (C_DADOS.TX_NOME_USUARIO) 
+            )
+        LOOP
+            OUT_SCRIPT_SAIDA := OUT_SCRIPT_SAIDA||CHR(13)||C_SAIDA_1.TX_SCRIPT;
+        END LOOP;
+        
+        
+        FOR C_SAIDA_1 IN 
+            (   
+            SELECT 'alter user '|| U.USERNAME ||' quota ' || DECODE(TQ.MAX_BYTES, -1,'unlimited',TQ.MAX_BYTES) ||' on ' || TQ.TABLESPACE_NAME || ';' AS TX_SCRIPT 
+            FROM DBA_TS_QUOTAS TQ 
+            JOIN DBA_USERS U ON TQ.USERNAME=U.USERNAME 
+            WHERE TQ.USERNAME IN (C_DADOS.TX_NOME_USUARIO) 
+            )
+        LOOP
+            OUT_SCRIPT_SAIDA := OUT_SCRIPT_SAIDA||CHR(13)||C_SAIDA_1.TX_SCRIPT;
+        END LOOP;
+
+        FOR C_SAIDA_1 IN 
+            (   
+            select 'grant '|| rp.granted_role || ' to ' || u.username || decode(rp.admin_option, 'YES', ' with grant option') || ';' as TX_SCRIPT 
+            from dba_role_privs rp 
+            join dba_users u on rp.grantee=u.username 
+            where rp.grantee IN (C_DADOS.TX_NOME_USUARIO) 
+            )
+        LOOP
+            OUT_SCRIPT_SAIDA := OUT_SCRIPT_SAIDA||CHR(13)||C_SAIDA_1.TX_SCRIPT;
+        END LOOP;
+
+        FOR C_SAIDA_1 IN 
+            (   
+            select 'grant '|| sp.privilege || ' to ' || u.username || decode(sp.admin_option, 'YES', ' with grant option') || ';' as TX_SCRIPT 
+            from dba_sys_privs sp join dba_users u on sp.grantee=u.username 
+            where sp.grantee IN (C_DADOS.TX_NOME_USUARIO) 
+            )
+        LOOP
+            OUT_SCRIPT_SAIDA := OUT_SCRIPT_SAIDA||CHR(13)||C_SAIDA_1.TX_SCRIPT;
+        END LOOP;
+                
+        FOR C_SAIDA_1 IN 
+            (   
+           select 'grant '|| tp.privilege || ' on ' || tp.owner || '.' || tp.table_name ||' to '|| u.username || decode(grantable, 'YES', ' with grant option') || ';' as TX_SCRIPT 
+           from dba_tab_privs tp join dba_users u on tp.grantee=u.username 
+           where tp.grantee IN (C_DADOS.TX_NOME_USUARIO)
+            )
+        LOOP
+            OUT_SCRIPT_SAIDA := OUT_SCRIPT_SAIDA||CHR(13)||C_SAIDA_1.TX_SCRIPT;
+        END LOOP;
+        
+        FOR C_SAIDA_1 IN 
+            (   
+           select 'grant '|| cp.privilege || '(' || cp.column_name || ') on ' || cp.owner || '.' || cp.table_name || ' to ' || u.username ||';' as TX_SCRIPT
+           from dba_col_privs cp join dba_users u on cp.grantee=u.username 
+           where cp.grantee IN (C_DADOS.TX_NOME_USUARIO)
+            )
+        LOOP
+            OUT_SCRIPT_SAIDA := OUT_SCRIPT_SAIDA||CHR(13)||C_SAIDA_1.TX_SCRIPT;
+        END LOOP;
+                
+        FOR C_SAIDA_1 IN 
+            (   
+           select 'alter user '|| u.username ||' default role ' || rp.granted_role ||';' as TX_SCRIPT 
+           from dba_role_privs rp join dba_users u on rp.grantee=u.username 
+           where rp.grantee IN (C_DADOS.TX_NOME_USUARIO) 
+           and default_role = 'YES'
+            )
+        LOOP
+            OUT_SCRIPT_SAIDA := OUT_SCRIPT_SAIDA||CHR(13)||C_SAIDA_1.TX_SCRIPT;
+        END LOOP;
+
+    END LOOP;
+
+    DBMS_OUTPUT.PUT_LINE(OUT_SCRIPT_SAIDA);
+    OUT_SCRIPT_SAIDA := NULL;
+END;
+ 
+-- bloquinho do hens
+
+DECLARE
+	V_SYNONYM VARCHAR2(200);
+	V_GRANT_DQL VARCHAR2(1000);
+	V_GRANT_DML VARCHAR2(1000);
+	V_SCHEMA VARCHAR2(50) := 'TESTE';  --inserir o usuário sem o DB
+BEGIN
+	-- Pesquisar schema com DB no filtro para os objetos relacionados
+	FOR C_OBJETO IN (
+		SELECT OWNER, OBJECT_NAME, OBJECT_TYPE
+		FROM DBA_OBJECTS
+		WHERE OWNER = 'DB_'||V_SCHEMA
+			AND OBJECT_TYPE IN ('TABLE','SEQUENCE','VIEW','PROCEDURE','FUNCTION') 
+		ORDER BY OBJECT_TYPE )
+	LOOP
+	-- Gerar scripts de synonym e grant
+		CASE C_OBJETO.OBJECT_TYPE
+			WHEN 'TABLE' THEN
+				V_SYNONYM := 'CREATE OR REPLACE SYNONYM USR_' || V_SCHEMA || '."' || C_OBJETO.OBJECT_NAME || '" FOR ' || C_OBJETO.OWNER || '."' || C_OBJETO.OBJECT_NAME || '"';
+				V_GRANT_DQL := 'GRANT SELECT ON ' || C_OBJETO.OWNER || '."' || C_OBJETO.OBJECT_NAME || '" TO RL_' || V_SCHEMA || '_DQL';
+				V_GRANT_DML := 'GRANT INSERT,DELETE,UPDATE ON ' || C_OBJETO.OWNER || '."' || C_OBJETO.OBJECT_NAME || '" TO RL_' || V_SCHEMA || '_DML';
+			WHEN 'SEQUENCE' THEN
+				V_SYNONYM := 'CREATE OR REPLACE SYNONYM USR_' || V_SCHEMA || '."' || C_OBJETO.OBJECT_NAME || '" FOR ' || C_OBJETO.OWNER || '."' || C_OBJETO.OBJECT_NAME || '"';
+				V_GRANT_DQL := 'GRANT SELECT ON ' || C_OBJETO.OWNER || '."' || C_OBJETO.OBJECT_NAME || '" TO RL_' || V_SCHEMA || '_DQL';
+			WHEN 'VIEW' THEN
+				V_SYNONYM := 'CREATE OR REPLACE SYNONYM USR_' || V_SCHEMA || '."' || C_OBJETO.OBJECT_NAME || '" FOR ' || C_OBJETO.OWNER || '."' || C_OBJETO.OBJECT_NAME || '"';
+				V_GRANT_DQL := 'GRANT SELECT ON ' || C_OBJETO.OWNER || '.' || C_OBJETO.OBJECT_NAME || ' TO RL_' || V_SCHEMA || '_DQL';
+			ELSE
+				V_SYNONYM := 'CREATE OR REPLACE SYNONYM USR_' || V_SCHEMA || '."' || C_OBJETO.OBJECT_NAME || '" FOR ' || C_OBJETO.OWNER || '."' || C_OBJETO.OBJECT_NAME || '"';
+				V_GRANT_DML := 'GRANT EXECUTE ON ' || C_OBJETO.OWNER || '."' || C_OBJETO.OBJECT_NAME || '" TO RL_' || V_SCHEMA || '_DML';
+		END CASE;
+	-- Execução
+	    EXECUTE IMMEDIATE 'GRANT RL_' || V_SCHEMA || '_DML TO USR_' || V_SCHEMA; -- Aplica role DML para o USR
+	    EXECUTE IMMEDIATE 'GRANT RL_' || V_SCHEMA || '_DQL TO RL_' || V_SCHEMA || '_DML'; -- Aplica role DQL para DML
+		IF V_SYNONYM IS NOT NULL THEN
+		EXECUTE IMMEDIATE V_SYNONYM;
+		END IF;
+		IF V_GRANT_DQL IS NOT NULL THEN
+		EXECUTE IMMEDIATE V_GRANT_DQL;
+		END IF;
+		IF V_GRANT_DML IS NOT NULL THEN
+		EXECUTE IMMEDIATE V_GRANT_DML;
+		END IF;
+	END LOOP;
+END;
+/
+ 
+-- bloquinho do magno
+
+DECLARE
+	V_DDL_SYNOM VARCHAR2(200);
+	V_DDL_GRANT VARCHAR2(200);
+	V_USER VARCHAR2(30) := 'ASINCREUSR'; 
+	V_SCHEMA VARCHAR2(30) := 'ASINCRE200'; 
+	V_SCHEMA_AUDIT VARCHAR2(30) := 'ASINCRE200_AUDIT'; 
+BEGIN
+	FOR C_OBJETO IN (
+		SELECT OWNER, OBJECT_NAME, OBJECT_TYPE
+		FROM ALL_OBJECTS
+		WHERE OWNER IN (V_SCHEMA, V_SCHEMA_AUDIT) 
+			AND OBJECT_TYPE IN ('TABLE','SEQUENCE','VIEW') 
+		ORDER BY OBJECT_TYPE )
+	LOOP
+		CASE C_OBJETO.OBJECT_TYPE
+			WHEN 'TABLE' THEN
+				IF C_OBJETO.OWNER = V_SCHEMA_AUDIT THEN
+					V_DDL_SYNOM := 'CREATE OR REPLACE SYNONYM ' || V_USER || '.' || C_OBJETO.OBJECT_NAME || ' FOR ' || C_OBJETO.OWNER || '.' || C_OBJETO.OBJECT_NAME;
+					V_DDL_GRANT := 'GRANT SELECT, INSERT ON ' || C_OBJETO.OWNER || '.' || C_OBJETO.OBJECT_NAME || ' TO ' || V_USER;
+				ELSE
+					V_DDL_SYNOM := 'CREATE OR REPLACE SYNONYM ' || V_USER || '.' || C_OBJETO.OBJECT_NAME || ' FOR ' || C_OBJETO.OWNER || '.' || C_OBJETO.OBJECT_NAME;
+					V_DDL_GRANT := 'GRANT SELECT, INSERT, UPDATE, DELETE ON ' || C_OBJETO.OWNER || '.' || C_OBJETO.OBJECT_NAME || ' TO ' || V_USER;
+				END IF;
+			WHEN 'SEQUENCE' THEN
+					V_DDL_SYNOM := 'CREATE OR REPLACE SYNONYM ' || V_USER || '.' || C_OBJETO.OBJECT_NAME || ' FOR ' || C_OBJETO.OWNER || '.' || C_OBJETO.OBJECT_NAME;
+					V_DDL_GRANT := 'GRANT SELECT ON ' || C_OBJETO.OWNER || '.' || C_OBJETO.OBJECT_NAME || ' TO ' || V_USER;
+			WHEN 'VIEW' THEN
+				V_DDL_SYNOM := 'CREATE OR REPLACE SYNONYM ' || V_USER || '.' || C_OBJETO.OBJECT_NAME || ' FOR ' || C_OBJETO.OWNER || '.' || C_OBJETO.OBJECT_NAME;
+				V_DDL_GRANT := 'GRANT SELECT ON ' || C_OBJETO.OWNER || '.' || C_OBJETO.OBJECT_NAME || ' TO ' || V_USER;
+		END CASE;
+	-- Execução
+		EXECUTE IMMEDIATE V_DDL_SYNOM;
+		EXECUTE IMMEDIATE V_DDL_GRANT;
+	END LOOP;
+END;
+
+select 'CREATE OR REPLACE SYNONYM SUAS_INTER.' || OBJECT_NAME || ' FOR ' || OWNER || '.' || OBJECT_NAME ||';'
+FROM DBA_OBJECTS
+WHERE OWNER = 'SUAS' AND OBJECT_TYPE IN ('TABLE','SEQUENCE','VIEW');
+
+select 'CREATE OR REPLACE SYNONYM SUAS_INTER.' || SYNONYM_NAME || ' FOR ' || TABLE_OWNER || '.' || TABLE_NAME ||';'
+FROM DBA_SYNONYMS
+WHERE OWNER = 'SUAS';
+
+-- trigger para registrar tentativa de login com senha incorreta (executar com o usuário sys)
+Produrar trigger lgn_dny_pwd_alrtlg no banco ou na base de conhecimentos
+
+-- trigger para impedir login login com ferramenta de desenvolvimento
+Procurar trigger SYS.TG_DEV_TOOL_DNY no banco ou na base de conhecimentos
+
+-- trigger para rastrear (trace) as atividades de um usuário específico
+Procurar trigger sys.tg_schema_trace no banco ou na base de conhecimentos
+
+-- consulta para descobrir as Triggers de nivel de eventos de Database (Database Level Event Triggers)
+
+select * from dba_triggers where triggering_event like '%LOGON%';
+
+SELECT a.obj#, a.sys_evts, b.name
+ FROM trigger$ a,obj$ b
+ WHERE a.sys_evts > 0
+ AND a.obj#=b.obj#
+ AND baseobject = 0;
+
+-- teste de schema (objetos)
+ver arquivo script_teste_schema.sql na base oracle
+
+-- teste de estresse tablespace
+create tablespace teste datafile '+dg02p/dpf03p/datafile/teste01.dbf' size 1m autoextend off ; ****verificar o local do datafile****
+create user testeusr identified by teste default tablespace teste quota unlimited on teste;
+grant create session to testeusr;
+grant create table to testeusr;
+
+conn testeusr
+
+create table tabela (
+i number,
+x number,
+text varchar(20)
+);
+
+declare
+   x number := 0;
+begin
+   for i in 1..1000 loop
+      if mod(i,2) = 0 then     -- i is even
+         insert into tabela values (i, x, 'i is even');
+      else
+         insert into tabela values (i, x, 'i is odd');
+      end if;
+      x := x + 1;
+   end loop;
+   commit;
+end;
+/
+
+-- Utilização da feature advanced compression e advanced security
+select owner, table_name, COMPRESSION,compress_for, num_rows from dba_tables where COMPRESSION='ENABLED' and COMPRESS_FOR='ADVANCED';
+SELECT * FROM v$option WHERE PARAMETER LIKE '%Advanced%Compression%' OR PARAMETER LIKE '%SECURITY%' order by 2,1
+select tablespace_name, encrypted from dba_tablespaces;
+select owner,table_name,column_name,encryption_alg from dba_encrypted_columns;
+
+-- Teste de remoção da compressão
+DROP TABLE HENRIQUESS.TESTE;
+select owner, table_name, COMPRESSION,compress_for, num_rows from dba_tables
+where COMPRESSION='ENABLED' and COMPRESS_FOR='ADVANCED' and owner = 'HENRIQUESS';
+CREATE TABLE HENRIQUESS.TESTE (ID INTEGER)
+SEGMENT CREATION IMMEDIATE COMPRESS FOR OLTP LOGGING TABLESPACE USERS ENABLE ROW MOVEMENT;
+select owner, table_name, COMPRESSION,compress_for, num_rows from dba_tables
+where COMPRESSION='ENABLED' and COMPRESS_FOR='ADVANCED' and owner = 'HENRIQUESS';
+ALTER TABLE HENRIQUESS.TESTE NOCOMPRESS; -- altera o metadado, novas linhas são nocompress
+ALTER TABLE HENRIQUESS.TESTE MOVE NOCOMPRESS; -- move os dados para nocompress
+-- ALTER TABLE HENRIQUESS.TESTE MOVE PARTITION tabela_part1 NOCOMPRESS; -- se tiver partição
+select owner, table_name, COMPRESSION,compress_for, num_rows from dba_tables
+where COMPRESSION='ENABLED' and COMPRESS_FOR='ADVANCED' and owner = 'HENRIQUESS';
+select segment_name, tablespace_name from dba_segments where tablespace_name in
+(select tablespace_name from dba_tablespaces where encrypted = 'YES');
+
+-- Verificar features do Oracle
+show parameter CONTROL_MANAGEMENT_PACK_ACCESS;
+
+col c1 heading 'feature'    format a45
+col c2 heading 'times|used' format 999,999
+col c3 heading 'first|used'
+col c4 heading 'used|now'
+select name c1, detected_usages c2, first_usage_date c3, currently_used c4
+from dba_feature_usage_statistics
+where first_usage_date is not null;
+
+Prompt ################################################################################### 
+Prompt # dba_feature_usage_statistics.sql  
+-- Description  : Select from dba_feature_usage_statistics 
+-- Working on   : 10,11,12 
+-- Last Modified: max@2015-07-01 
+Prompt ################################################################################### 
+ 
+SET LINESIZE 1000 PAGESIZE 1000 ECHO OFF FEEDBACK OFF RECSEP OFF 
+ 
+TTITLE LEFT 'dba_feature_usage_statistics:' 
+COLUMN extra_cost FORMAT a35 
+COLUMN name FORMAT a35 WRAPPED 
+COLUMN cou FORMAT 99999999 JUS C 
+COLUMN cur_used format a8 
+COLUMN VERSION FORMAT a10 
+COLUMN last_usage FORMAT A10 
+COLUMN FEATURE_INFO FORMAT a30 
+SELECT CASE 
+         WHEN u1.NAME = 'HeapCompression' 
+              AND 
+              (SELECT COUNT(DBA_TABLES.COMPRESS_FOR) 
+               FROM   DBA_TABLES 
+               WHERE  COMPRESS_FOR IN 
+                      ('FOR ALL OPERATIONS', 'OLTP', 'QUERY LOW', 'QUERY HIGH', 'ARCHIVE LOW', 'ARCHIVE HIGH')) > 0 THEN 
+          'Advanced Compression'  
+          WHEN u1.NAME = 'Backup ZLIB Compression' THEN 'Advanced Compression' 
+          WHEN u1.NAME = 'Backup LOW Compression' THEN 'Advanced Compression' 
+          WHEN u1.NAME = 'Backup MEDIUM Compression' THEN 'Advanced Compression' 
+          WHEN u1.NAME = 'Backup HIGH Compression' THEN 'Advanced Compression'  
+          WHEN u1.NAME = 'Backup BZIP2 Compression' THEN 'Advanced Compression'         
+          WHEN u1.NAME = 'Backup DEFAULT Compression' THEN 'Advanced Compression' 
+          WHEN u1.NAME = 'SecureFile Compression (user)' THEN 'Advanced Compression'  
+          WHEN u1.NAME = 'SecureFile Deduplication (user)' THEN 'Advanced Compression'   
+         --    
+          WHEN u1.name = 'Flashback Data Archive' THEN 'Advanced Compression (Total Recall) (must have Adv.Compression before 11.2.0.4' 
+          WHEN u1.name = 'Total Recall' THEN 'Total Recall'   
+          WHEN u1.NAME = 'Hybrid Columnar Compression' THEN 'Advanced Compression'    
+          WHEN u1.NAME = 'Data Guard' AND u1.feature_info LIKE '%Compression used: TRUE%' THEN  'Advanced Compression'  
+          WHEN u1.NAME LIKE 'Oracle Utility Datapump%'  
+                   AND feature_info IS NOT NULL AND   
+                       ( trim(substr(to_char(feature_info), instr(to_char(feature_info), 'compression used: ',1,1) + 18, 2)) != '0'      
+                       OR                                                                                                                                             
+                       trim(substr(to_char(feature_info), instr(to_char(feature_info), 'compression used: ',1,1) + 18, 2)) != '0') 
+                       /*(to_number(SUBSTR(substr(feature_info, INSTR(feature_info, 'compression used: ') + LENGTH('compression used: ')), 
+                        1, 
+                        INSTR(substr(feature_info, 
+                                     INSTR(feature_info, 'compression used: ') + LENGTH('compression used: ')), 
+                              ' times') - 1))>0 OR to_number(SUBSTR(substr(feature_info, INSTR(feature_info, 'encryption used: ') + LENGTH('encryption used: ')), 
+                        1, 
+                        INSTR(substr(feature_info, 
+                                     INSTR(feature_info, 'encryption used: ') + LENGTH('encryption used: ')), 
+                              ' times') - 1))>0 )*/ 
+            THEN 'Advanced Compression or Advanced Security (check it!)' ||  dbms_lob.substr(feature_info,300) 
+          WHEN u1.name = 'Real Application Clusters (RAC)' THEN 'Real application cluster'        
+          WHEN u1.name LIKE 'Active Data Guard%' THEN 'Active Data Guard'   
+          WHEN u1.name = 'Oracle Database Vault' THEN 'Oracle Database Vault'   
+          WHEN u1.name = 'Database Vault' THEN 'Database Vault'   
+          WHEN u1.name = 'Quality of Service Management' THEN 'Real application cluster'  
+          WHEN u1.name = 'Label Security' THEN 'Label Security'   
+          WHEN u1.name = 'Partitioning (user)' THEN 'Partitioning' 
+          WHEN u1.name LIKE 'OLAP%' THEN 'OLAP' 
+          WHEN u1.name = 'GoldenGate' THEN 'GoldenGate' 
+          WHEN u1.name = 'Spatial' THEN 'Spatial and Graph'    
+          WHEN u1.name = 'Semantics/RDF' THEN 'Spatial and Graph' 
+         -- 'Tuning Pack       
+          WHEN u1.name = 'Tuning Pack' THEN 'Tuning Pack'   
+          WHEN u1.name = 'Real-Time SQL Monitoring' THEN 'Tuning Pack (or as part of Diagnostics Pack)' 
+          WHEN u1.name = 'SQL Access Advisor' THEN 'Tuning Pack (or as part of Diagnostics Pack)'     
+          WHEN u1.name = 'SQL Tuning Advisor' THEN 'Tuning Pack (or as part of Diagnostics Pack)' 
+          WHEN u1.name = 'SQL Tuning Set (user)' THEN 'Tuning Pack (NOT IN METALINK) (or as part of Diagnostics Pack) OR Oracle Real Application Testing' 
+          WHEN u1.name = 'SQL Monitoring and Tuning pages' THEN 'Tuning Pack (NOT IN METALINK (or as part of Diagnostics Pack)' 
+          WHEN u1.name = 'Automatic SQL Tuning Advisor' THEN 'Tuning Pack (or as part of Diagnostics Pack)' 
+          WHEN u1.name = 'SQL Profile' THEN 'Tuning Pack (or as part of Diagnostics Pack)' 
+         --  
+          WHEN u1.name = 'Transparent Data Encryption' THEN 'Oracle Advanced Security' 
+          WHEN u1.name = 'Backup Encryption' THEN  'Oracle Advanced Security' 
+          WHEN u1.name = 'ASO native encryption and checksumming' THEN  'Oracle Advanced Security' 
+          WHEN u1.name = 'Encrypted Tablespaces' THEN  'Oracle Advanced Security' 
+          WHEN u1.name = 'SecureFile Encryption (user)' THEN  'Oracle Advanced Security' 
+         -- 'Oracle Real Application Testing'    
+          WHEN u1.name LIKE 'Database Replay:%' THEN 'Oracle Real Application Testing' 
+          WHEN u1.name = 'SQL Performance Analyzer' THEN 'Oracle Real Application Testing'   
+         --'Oracle Diagnostics Pack' 
+          WHEN u1.name LIKE 'AWR%' THEN 'Oracle Diagnostics Pack'    
+          WHEN u1.name =  'Diagnostic Pack' THEN  'Diagnostic Pack'                           
+          WHEN u1.name  = 'Automatic Workload Repository' THEN  'Oracle Diagnostics Pack (but not in metalink note)'  
+          WHEN u1.name  = 'ADDM'                         THEN  'Oracle Diagnostics Pack'  
+          WHEN u1.name = 'Baseline Adaptive Thresholds' THEN  'Oracle Diagnostics Pack'  
+          WHEN u1.name = 'Baseline Static Computations' THEN  'Oracle Diagnostics Pack'  
+         --    
+          WHEN u1.name = 'Change Management Pack (GC)' THEN 'Change Management Pack (GC)'    
+          WHEN u1.name = 'Data Masking Pack (GC)' THEN 'Data Masking Pack' 
+          WHEN u1.name = 'Data Mining' THEN 'Data Mining'    
+          -- 
+          WHEN u1.name = 'Exadata' THEN 'Exadata' 
+         ELSE 
+          NULL 
+       END AS extra_cost, 
+       u1.name, 
+       u1.detected_usages AS cou, 
+       u1.currently_used AS cur_used, 
+       u1.version, 
+       to_char(u1.last_usage_date, 'DD.MM.YYYY') AS last_usage 
+   --    ,feature_info    
+   --    ,DESCRIPTION 
+FROM   dba_feature_usage_statistics u1 
+WHERE  u1.version = (SELECT MAX(u2.version) 
+                     FROM   dba_feature_usage_statistics u2 
+                     WHERE  u2.name = u1.name) 
+      AND    u1.detected_usages > 0 
+      AND    u1.dbid = (SELECT dbid FROM v$database) 
+      AND    u1.last_usage_date > SYSDATE - 366 
+       AND NAME NOT LIKE '%(system)%' 
+ORDER  BY NAME;
+
+-- Contagem de tabelas
+
+DECLARE 
+    contagem_1 NUMBER;
+BEGIN
+    DBMS_OUTPUT.PUT_LINE('TABELA - PORTAL_ATT');
+    FOR I IN (SELECT TABLE_NAME FROM dba_tables where owner = 'PORTAL') LOOP
+        EXECUTE IMMEDIATE 'SELECT count(*) FROM PORTAL.' || i.table_name INTO contagem_1;
+        DBMS_OUTPUT.PUT_LINE(i.table_name || ' - ' || contagem_1);
+    END LOOP;
+END;
+/

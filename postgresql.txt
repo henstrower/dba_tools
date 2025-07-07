@@ -1,0 +1,819 @@
+-- TASKS DIARIAS
+Olhar backups de produção
+Olhar replicação VIPPG e SUPGPD16
+
+-- TASKS SEMANAIS
+Olhar backups de produção
+Teste de restore
+
+-- TASKS MENSAIS
+
+
+-- pg como serviço
+/usr/pgsql-16/bin/postgresql-16-setup initdb
+systemctl enable postgresql-16
+systemctl start postgresql-16
+
+postgresql-setup --initdb
+systemctl enable postgresql.service
+systemctl start postgresql.service
+
+-- criar banco
+acessar a pasta binários
+cd /usr/pgsql-9.0/bin
+localizar o binário initdb
+executar
+initdb -d /bd/data2/ -e utf8 --locale=c   (maior compatibilidade)
+
+-- Lendo vários logs à procura de erros:
+for a in postgresql-2020-07-2*.log; do grep -e 'FATAL\|WARNING\|ERROR' < $a; done
+
+-- stop banco
+/usr/lib/postgresql/9.0/bin/pg_ctl stop -d /var/lib/postgresql/9.0/main -m immediate
+pg_ctl stop -d dir -m -f
+ou task kill
+
+-- start banco
+/usr/lib/postgresql/9.0/bin/pg_ctl start -d /var/lib/postgresql/9.0/main
+parâmetro: -o "-c config_file=/etc/postgresql/9.0/main/postgresql.conf"
+
+-- make e make install
+https://www.postgresql.org/docs/9.5/install-procedure.html
+
+-- criar banco como latin em um servidor com utf8
+ERROR: encoding “LATIN1″ does not match locale “pt_BR.UTF-8″
+CREATE DATABASE xpto TEMPLATE template0;
+update pg_database set encoding = pg_char_to_encoding('LATIN1') where datname = 'xpto';
+
+-- uptime
+SELECT date_trunc('second', current_timestamp - pg_postmaster_start_time()) as uptime;
+
+-- hostname
+select pg_read_file('/etc/hostname') as hostname;
+
+-- teste de disco (cria um arquivo de 1gb no diretório atual)
+time dd if=/dev/urandom of=test.file bs=1M count=1024 oflag=dsync
+
+-- backup, restore e teste (@dump)
+pg_dump -h 10.0.0.217 -U hepta_dba -v -f bkp_lportal.dmp lportal > backup.log 2>&1
+psql -h localhost -v -d lportal < bkp_lportal.dmp > restore.log 2>&1
+grep -e 'FATAL\|WARNING\|ERROR' < restore.log | sort --unique
+for a in *.log; do grep -e 'FATAL\|WARNING\|ERROR' < $a; done > error.txt
+-- dump de um banco inteiro - formato sql puro
+pg_dump -U username -h ip_server -v -f database.sql database > backup.log 2>&1
+
+-- dump de um banco inteiro - formato binario
+pg_dump -U username -h ip_server -v -Fc --no-tablespaces -f database.dump database > backup.log 2>&1
+
+-- dump antes de deploy
+pg_dump -v -c -Fc -f db_$(date +%Y%m%d_%H%M).dump db > bkp_db.log 2>&1
+
+-- dump sem nada
+pg_dump -Fc -O -x --no-tablespaces -v -d db > db_$(date +%Y%m%d_%H%M).dump
+
+-- dump de um schema do banco - formato sql puro
+pg_dump -U username -h ip_server -v -n schema -f database.sql database > backup.log 2>&1
+
+-- dump de uma tabela do banco
+pg_dump -U username -h ip_server -v -Fc -t schema.table -f bkp_database_schema_table.dump database > backup.log 2>&1
+
+-- dump container formato binario
+docker compose exec -it database bash -c 'PGPASSWORD="$(cat ${POSTGRES_PASSWORD_FILE})" pg_dump --username=$(cat ${POSTGRES_USER_FILE}) --format=c -f /var/backups/database/${POSTGRES_DB}_$(date +%Y%m%d).dump ${POSTGRES_DB}'
+
+-- dump container formato sql
+docker compose exec -it database bash -c 'PGPASSWORD="$(cat ${POSTGRES_PASSWORD_FILE})" pg_dump --username=$(cat ${POSTGRES_USER_FILE}) --format=p -f /var/backups/database/${POSTGRES_DB}_$(date +%Y%m%d).sql ${POSTGRES_DB}'
+
+-- restaurar um banco com dump em formato SQL
+psql -U username -h ip_server -f file.sql database > restore.log 2>&1
+
+-- restaurar um banco com dump em formato binário
+pg_restore -U username -h ip_server -d database -v file.dump > restore.log 2>&1
+
+-- restaurar somente os dados:
+pg_restore -U username -h ip_server -a -d database -v file.dump > restore.log 2>&1
+
+-- restaurar somente um determinado esquema
+pg_restore -U username -h ip_server -n schema -d database -v file.dump > restore.log 2>&1
+
+-- restaurar apenas os dados de uma tabela especifica
+pg_restore -U username -h ip_server -a -t table -d database -v file.dump > restore.log 2>&1
+
+-- dump direto
+pg_dump -h 10.222.11.188 -p 5432 -Fc --no-tablespaces -n tab_cad_27112021 tab_cad | pg_restore -d tab_cad
+pg_dump -h 10.222.10.222 -p 9999 db_sli | psql db_sli
+
+-- dump rápido
+pg_dump -Fc -Z 9 -f banco.dmp banco
+pg_restore -Fc -j 8 banco.dmp
+
+-- tabcad
+nohup pg_dump -h 10.222.11.188 -p 5432 -v -Fc --no-tablespaces -n tab_cad_27112021 -f schema_tab_cad_27112021.dump tab_cad > schema_tab_cad_27112021.log 2>&1 &
+nohup pg_restore -v -d tab_cad schema_tab_cad_27112021.dump > restore_tab_cad_27112021.log 2>&1 &
+
+-- dump sli debug 
+pg_dump -v -f bkp_db_sli.sql db_sli_debug > backup_db_sli.log 2>&1 && sed -e 's:OWNER TO sli_debug;:OWNER TO sli_tst;:g' bkp_db_sli.sql > bkp_db_sli.sql.1 && sed -e 's:OWNER TO postgres;:OWNER TO sli_tst;:g' bkp_db_sli.sql.1 > bkp_db_sli.sql.2 && sed -e 's:OWNER TO usr_sli_debug;:OWNER TO sli_tst;:g' bkp_db_sli.sql.2 > bkp_db_sli.sql.3 && sed -e 's:GRANT :-- GRANT :g' bkp_db_sli.sql.3 > bkp_db_sli.sql.4 && rm -f bkp_db_sli.sql.3 bkp_db_sli.sql.2 bkp_db_sli.sql.1 && mv -f bkp_db_sli.sql.4 bkp_db_sli.sql
+
+-- extrair ou exportar tabela em csv
+COPY siain.teste_carga_diarias_passagens TO '/home/postgres/siain/teste_carga_diarias_passagens-dezembro-2018.csv' DELIMITER '|' CSV HEADER;
+COPY (query) TO '<directory>' DELIMITER ';' CSV HEADER;
+psql -f query.sql database
+
+-- importar tabela csv para tabela
+COPY <schema.tabela> FROM '<directory><arquivo.csv>' DELIMITER '|' CSV HEADER;
+
+-- pgpool commands
+psql -h localhost -p9999 -U postgres postgres -c "show pool_nodes"
+psql -h localhost -p9999 -U postgres postgres -c "show pool_status"
+psql -h 10.222.10.222 -p 9999 -U usr_pgpool postgres -c "show pool_nodes"
+pcp_attach_node -h 127.0.0.1 -U postgres -p 9898 -W -n 1
+pcp_attach_node -p 9898 -n 1 -U postgres
+
+-- modo restrito
+--> Via pg_hba.conf
+--> Via postgresql.conf:
+# - Connection Settings -
+listen_addresses = '*'          # what IP address(es) to listen on;
+
+-- Atualizar pg_ctl
+pg_ctl reload -D $PGDATA
+psql -c "select pg_reload_conf()"
+
+-- pesquisar colunas no postgresql
+SELECT column_name
+  FROM information_schema.columns
+ WHERE table_schema = 'incentivoesporte'
+   AND table_name   = 'vwrelatoriogeraldoadores_old'
+order by 1;
+
+-- Optimize and Improve PostgreSQL Performance with VACUUM, ANALYZE, and REINDEX
+https://confluence.atlassian.com/kb/optimize-and-improve-postgresql-performance-with-vacuum-analyze-and-reindex-885239781.html
+
+-- ver sessões ativas
+select procpid, usename, datname, backend_start, client_addr, client_port, current_query from pg_stat_activity;
+
+-- monitorar selects
+select 'select pg_cancel_backend('||procpid::varchar||');' as mata, datname, procpid, usename, current_query, waiting, client_addr, (now() - backend_start) as tempo_backend, (now() - query_start) as tempo_query,( (substring(replace((now() - query_start)::interval::varchar,':',''),1,2)::integer*3600)+(substring(replace((now() - query_start)::interval::varchar,':',''),3,2)::integer*60)+ (substring(replace((now() - query_start)::interval::varchar,':',''),5,9)::float)) dur_segundos from pg_stat_activity where (current_query  not like  '%<IDLE>%' or current_query  like  '%transaction%' ) --and datname = 'dbbi' -- and current_query not like  '%VACUUM%' and current_query not like  '%ANALYZE%' --and waiting = 't'
+-- and query_start >= '2013-03-15'::date
+-- and ( (substring(replace((now() - query_start)::interval::varchar,':',''),1,2)::integer*3600)+(substring(replace((now() - query_start)::interval::varchar,':',''),3,2)::integer*60)+ (substring(replace((now() - query_start)::interval::varchar,':',''),5,9)::float))  > 50
+order by tempo_query desc;
+
+-- executar comandos psql com root
+su - postgres -c "psql -c \"select * from pg_stat_activity;\""
+
+-- verificar as roles que fazem login
+select rolname from pg_roles where rolcanlogin = 't' order by 1;
+
+-- criar senha MD5 para usuário postgres
+SELECT MD5('<PASSWORD><USUARIO>');
+alter user <USUARIO> with password 'md5<HASHMD5>';
+SELECT MD5('ICRfuQKEqdusr_agatha');
+alter user usr_agatha with password 'md5bcaa727993f90e5acf3de13ee30250f4';
+
+-- script para copiar e criar usuários
+select 'CREATE ROLE ' || '"' ||rolname || '"'
+|| case when rolpassword is not null then ' LOGIN ENCRYPTED PASSWORD ' || '''' || rolpassword || '''' else '' end
+|| case when rolsuper      = 'f' then ' NOSUPERUSER' else ' SUPERUSER' end
+|| case when rolinherit    = 'f' then ' NOINHERIT' else ' INHERIT' end
+|| case when rolcreatedb   = 'f' then ' NOCREATEDB' else ' CREATEDB' end
+|| case when rolcreaterole = 'f' then ' NOCREATEROLE' else ' CREATEROLE' end
+|| ';'
+from pg_authid
+union
+select 'grant "'||role_name||'" to "'||grantee||'";'
+from information_schema.applicable_roles
+where grantee = 'ugen_bi'
+order by 1;
+
+-- @grants
+-- Script para grants
+select 'grant connect on database "'||datname||'" to "usuario";' from pg_database where datdba<>10
+
+select distinct 'grant usage on schema "'||schema_name||'" to "usuario";' from information_schema.schemata where schema_name not in ('pg_catalog','information_schema','pg_temp_1','pg_toast','pg_toast_temp_1')
+union
+select 'grant select on table "'||schemaname||'"."'||tablename||'" to "usuario";' from pg_tables where schemaname not in ('pg_catalog','information_schema','pg_temp_1','pg_toast','pg_toast_temp_1')
+union
+select 'grant select on "'||schemaname||'"."'||viewname||'" to "usuario";' from pg_views where schemaname not in ('pg_catalog','information_schema','pg_temp_1','pg_toast','pg_toast_temp_1')
+union
+select 'grant select on "'||schemaname||'"."'||matviewname||'" to "usuario";' from pg_matviews where schemaname not in ('pg_catalog','information_schema','pg_temp_1','pg_toast','pg_toast_temp_1')
+union
+select 'grant select,usage on all sequences in schema "'||nspname||'" TO "usuario";' from pg_catalog.pg_namespace where nspname not in ('pg_toast','pg_temp_1','pg_toast_temp_1','pg_catalog','information_schema','pg_temp_1','pg_toast','pg_toast_temp_1');
+
+-- grant nas sequences PostgreSQL <9
+SELECT 'GRANT SELECT,UPDATE,DELETE,INSERT ON '|| schemaname ||'.' || relname || ' TO "usuario";' FROM pg_statio_all_sequences where schemaname not in ('pg_toast','pg_temp_1','pg_toast_temp_1','pg_catalog','information_schema','pg_temp_1','pg_toast','pg_toast_temp_1');
+
+-- grant de leitura para todas as tabelas (pg >= 14)
+grant pg_read_all_data to usr_etl_metadados;
+
+-- permissão padrão para novos objetos no postgres em um schema
+select 'alter default privileges in schema "'||schema_name||'" grant select on tables to rl_deben_dql;' from information_schema.schemata where schema_name not in ('pg_catalog','information_schema','pg_temp_1','pg_toast','pg_toast_temp_1');
+select 'alter default privileges in schema "'||schema_name||'" grant select on sequences to rl_deben_dql;' from information_schema.schemata where schema_name not in ('pg_catalog','information_schema','pg_temp_1','pg_toast','pg_toast_temp_1');
+
+
+select 'GRANT select,insert, delete, update ON '||schemaname||'.'||tablename||' to s_pje,desenvolvedor,administrador,cnj,gestor;'
+FROM PG_TABLES 
+--WHERE TABLEOWNER = 'pje';
+--where tablename like 'tb_%';
+--where tablename='tb_parametro'
+where tablename not like 'pg_%'
+and schemaname not like 'information_%'
+--and schemaname = 'core'
+union
+select 'GRANT all privileges ON ALL TABLES IN schema '||schemaname || ' to s_pje,desenvolvedor,administrador,gestor,cnj;'
+FROM PG_TABLES 
+--WHERE TABLEOWNER = 'pje';
+where schemaname not like 'pg_%'
+and schemaname not like 'information_%'
+group by schemaname                                        
+union
+select 'GRANT all privileges ON '||schemaname||'.'||tablename||' to s_pje,desenvolvedor,administrador,gestor,cnj;'
+FROM PG_TABLES 
+where tablename not like 'pg_%'
+and schemaname not like 'information_%'
+--WHERE TABLEOWNER = 'pje';
+--where tablename like 'tb_%';
+--where schemaname='public'
+union
+select 'GRANT all privileges ON ALL SEQUENCES IN schema '||schemaname || ' to s_pje,desenvolvedor,administrador,gestor,cnj;'
+FROM PG_TABLES 
+--WHERE TABLEOWNER = 'pje';
+where schemaname not like 'pg_%'
+and schemaname not like 'information_%'
+group by schemaname
+
+-- verificar os grants dos objetos de um banco de dados
+SELECT * FROM information_schema.role_table_grants 
+
+-- verificar usuários que têm acesso ao banco de dados
+SELECT distinct grantee FROM information_schema.role_table_grants order by 1;
+SELECT distinct 'create role "'||grantee||'";' FROM information_schema.role_table_grants order by 1;
+
+-- verificar grants ou dependências do usuários
+SELECT * FROM INFORMATION_SCHEMA.TABLE_PRIVILEGES WHERE grantee not in ('postgres','PUBLIC');
+SELECT * FROM INFORMATION_SCHEMA.ROLE_TABLE_GRANTS WHERE grantee not in ('postgres','PUBLIC');
+select 'grant '||privilege_type||' on '||table_schema||'.'||table_name||' to '||grantee||';' 
+from INFORMATION_SCHEMA.TABLE_PRIVILEGES WHERE grantee='analista'
+ORDER BY table_name, privilege_type; 
+
+select * from pg_user
+join pg_auth_members on (pg_user.usesysid=pg_auth_members.member)
+join pg_roles on (pg_roles.oid=pg_auth_members.roleid)
+where pg_user.usename in (
+SELECT distinct(grantee) FROM INFORMATION_SCHEMA.TABLE_PRIVILEGES 
+where table_schema not in ('pg_catalog','information_schema','pg_temp_1','pg_toast','pg_toast_temp_1'));
+
+select * from pg_user
+join pg_auth_members on (pg_user.usesysid=pg_auth_members.member)
+join pg_roles on (pg_roles.oid=pg_auth_members.roleid)
+where pg_roles.rolname in (
+SELECT distinct(grantee) FROM INFORMATION_SCHEMA.TABLE_PRIVILEGES 
+where table_schema not in ('pg_catalog','information_schema','pg_temp_1','pg_toast','pg_toast_temp_1')); 
+
+-- dropar/eliminar usuário com dependências (executar no banco onde há dependências)
+reassign owned by rl_sli_dml_86056 to postgres;
+drop owned by rl_sli_dml_86056;
+drop role rl_sli_dml_86056;
+
+-- script para alterar owner @owner
+reassign owned by rl_sli_dml_86056 to postgres;
+
+/*alterar owner do database*/
+ALTER DATABASE "test" OWNER TO "usuario";
+
+select distinct 'ALTER SCHEMA "'||schemaname||'" OWNER TO "usuario";' from pg_tables where schemaname not in ('pg_catalog','information_schema','pg_temp_1','pg_toast','pg_toast_temp_1')
+union
+select 'ALTER TABLE "'||schemaname||'"."'||tablename||'" OWNER TO "usuario";' from pg_tables where schemaname not in ('pg_catalog','information_schema','pg_temp_1','pg_toast','pg_toast_temp_1')
+union
+select 'ALTER TABLE "'||schemaname||'"."'||viewname||'" OWNER TO "usuario";' from pg_views where schemaname not in ('pg_catalog','information_schema','pg_temp_1','pg_toast','pg_toast_temp_1')
+union
+select 'ALTER TABLE "'||schemaname||'"."'||matviewname||'" OWNER TO "usuario";' from pg_matviews where schemaname not in ('pg_catalog','information_schema','pg_temp_1','pg_toast','pg_toast_temp_1')
+union
+select 'ALTER FUNCTION "'||nsp.nspname||'"."'||p.proname||'"('||pg_get_function_identity_arguments(p.oid)||') OWNER TO "usuario";' from pg_proc p join pg_namespace nsp ON p.pronamespace = nsp.oid where nsp.nspname not in ('pg_catalog','information_schema','pg_temp_1','pg_toast','pg_toast_temp_1')
+union
+select 'ALTER SEQUENCE "'||sequence_schema||'"."'||sequence_name||'" OWNER TO "usuario";' from information_schema.sequences where sequence_schema not in ('pg_catalog','information_schema','pg_temp_1','pg_toast','pg_toast_temp_1');
+
+-- Criar tabela igual outra mas sem dados
+create table SCHEMA.NOVATABELA as table SCHEMA.OLDTABELA with no data;
+
+-- Alterar o owner da tabelas tabelas criadas (depois refazer grants)
+select 'alter table homologacao_sibec.'|| tablename ||' owner to deben;' from pg_tables where tableowner = 'postgres' and schemaname = 'homologacao_sibec';
+
+-- Alterar o owner dos schemas
+SELECT 'alter schema '||nspname||' owner to deben;' FROM pg_catalog.pg_namespace where nspname not in ('pg_toast','pg_temp_1','pg_toast_temp_1','pg_catalog','information_schema','pg_temp_1','pg_toast','pg_toast_temp_1');
+
+-- query para saber onde está pg_default
+select setting||'/base' from pg_settings where name='data_directory';
+
+-- restart sequences
+select schemaname,sequencename,last_value from pg_sequences;
+alter sequence <sequence> restart with 1;
+
+begin;
+LOCK TABLE gestor_cliquecidadania.languages IN EXCLUSIVE MODE;
+SELECT setval('gestor_cliquecidadania.languages_id_seq', COALESCE((SELECT MAX(id)+1 FROM gestor_cliquecidadania.languages), 1), false);
+end;
+
+-- monitorar locks (https://wiki.postgresql.org/wiki/Lock_Monitoring)
+select bl.pid as blocked_pid, a.usename as blocked_user, kl.pid as blocking_pid, ka.usename as blocking_user, a.current_query as blocked_statement from pg_catalog.pg_locks bl join pg_catalog.pg_stat_activity a on a.procpid = bl.pid join pg_catalog.pg_locks kl on kl.transactionid = bl.transactionid and kl.pid != bl.pid join pg_catalog.pg_stat_activity ka on ka.procpid = kl.pid where not bl.granted;
+SELECT blocked_locks.pid     AS blocked_pid,         blocked_activity.usename  AS blocked_user,         blocking_locks.pid     AS blocking_pid,         blocking_activity.usename AS blocking_user,         blocked_activity.query    AS blocked_statement,         blocking_activity.query   AS current_statement_in_blocking_process   FROM  pg_catalog.pg_locks         blocked_locks    JOIN pg_catalog.pg_stat_activity blocked_activity  ON blocked_activity.pid = blocked_locks.pid    JOIN pg_catalog.pg_locks         blocking_locks         ON blocking_locks.locktype = blocked_locks.locktype        AND blocking_locks.DATABASE IS NOT DISTINCT FROM blocked_locks.DATABASE        AND blocking_locks.relation IS NOT DISTINCT FROM blocked_locks.relation        AND blocking_locks.page IS NOT DISTINCT FROM blocked_locks.page        AND blocking_locks.tuple IS NOT DISTINCT FROM blocked_locks.tuple        AND blocking_locks.virtualxid IS NOT DISTINCT FROM blocked_locks.virtualxid        AND blocking_locks.transactionid IS NOT DISTINCT FROM blocked_locks.transactionid        AND blocking_locks.classid IS NOT DISTINCT FROM blocked_locks.classid        AND blocking_locks.objid IS NOT DISTINCT FROM blocked_locks.objid        AND blocking_locks.objsubid IS NOT DISTINCT FROM blocked_locks.objsubid        AND blocking_locks.pid != blocked_locks.pid    JOIN pg_catalog.pg_stat_activity blocking_activity ON blocking_activity.pid = blocking_locks.pid   WHERE NOT blocked_locks.GRANTED;
+
+SELECT * FROM pg_stat_activity where procpid = 8882;
+select * from pg_locks where mode <> 'AccessShareLock' and database = 16386;
+SELECT relation::regclass, * FROM pg_locks where pid = 8882;
+
+-- waiting ou idle transaction
+ps -ef | grep postgres
+kill -9 num_da_id
+select * from pg_stat_activity where state <> 'idle';
+select pg_terminate_backend(pid) from pg_stat_activity where pid = 16103;
+select 'select pg_terminate_backend(pid) from pg_stat_activity where pid = '||pid||';' from pg_stat_activity where state = 'BIND' and usename = 'ugen_aghu';
+-- 8.1
+select 'select pg_cancel_backend('||procpid||');' from pg_stat_activity where current_query='<IDLE>';
+
+-- verificar spid e terminar conexão
+select datid,datname,procpid,usename,waiting,xact_start,current_query  from pg_stat_activity;
+select 'select pg_terminate_backend('||procpid||');' from pg_stat_activity where usename = 'username';
+select pg_terminate_backend(70619);
+SELECT datname, usename, COUNT(*)
+  FROM pg_stat_activity
+  GROUP BY datname, usename;
+
+-- verificar max connections e top hit connections
+select max_conn,used,res_for_super,max_conn-used-res_for_super res_for_normal 
+from 
+  (select count(*) used from pg_stat_activity) t1,
+  (select setting::int res_for_super from pg_settings where name=$$superuser_reserved_connections$$) t2,
+  (select setting::int max_conn from pg_settings where name=$$max_connections$$) t3
+
+-- Verificar quanto de memória foi usada pelo postgres desde sua última inicialização (max memory)
+ps -ef | grep postgres (pegar o id do processo)
+grep ^VmPeak /proc/2709/status
+
+-- matar todas as conexões exceto a sua
+SELECT pg_terminate_backend(pg_stat_activity.pid)
+FROM pg_stat_activity
+WHERE datname = current_database()
+  AND pid <> pg_backend_pid();
+
+SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid();
+
+SELECT pg_terminate_backend(pid)
+FROM pg_stat_activity
+WHERE datname = 'Database_Name'
+	AND pid <> pg_backend_pid()
+	AND state in ('idle', 'idle in transaction', 'idle in transaction (aborted)', 'disabled') 
+	AND state_change < current_timestamp - INTERVAL '1' MINUTE;
+
+-- limpar archivelog area
+pg_archivecleanup -d /var/lib/postgresql/9.4/main/archive/slave2 000000010000041E00000057
+  
+-- Converter de Unix Timestamp para PostgreSQL Timestamp
+SELECT TIMESTAMP 'epoch' + coluna * INTERVAL '1 second' from tabela; 
+
+-- Watch comando
+watch -n0,1 "ps -ef | grep postgres"
+
+-- sincronização travada (rollback na gravação que resultou erro)
+select * from pg_prepared_xacts;
+select 'rollback prepared '||''''||gid||''''||';' from pg_prepared_xacts;
+
+-- Trigger do servidor gestãonet .199 que impede comandos alter
+select * from pg_trigger where tgname like '%controle%';
+alter table comum.unidade DISABLE TRIGGER controle_alteracoes_unidade;
+alter table comum.unidade ENABLE TRIGGER controle_alteracoes_unidade;
+ALTER TABLE siain.usuario ENABLE TRIGGER tga_afu_usuario;
+ALTER TABLE siain.usuario_perfil ENABLE TRIGGER tga_afd_usuario_perfil;
+
+-- Índice de fragmentação de tabela (linhas mortas / dead tuples)
+select n.nspname, c.relname, (pgstattuple_approx(c.oid)).* 
+from pg_class c 
+inner join pg_namespace n on (relnamespace = n.oid) 
+where n.nspname not in ('information_schema', 'pg_catalog', 'pg_toast') and c.relkind = 'r'
+ORDER BY dead_tuple_percent desc;
+
+-- indices duplicados
+SELECT pg_size_pretty(sum(pg_relation_size(idx))::bigint) as size,
+       (array_agg(idx))[1] as idx1, (array_agg(idx))[2] as idx2,
+       (array_agg(idx))[3] as idx3, (array_agg(idx))[4] as idx4
+FROM (
+    SELECT indexrelid::regclass as idx, (indrelid::text ||E'\n'|| indclass::text ||E'\n'|| indkey::text ||E'\n'||
+                                         coalesce(indexprs::text,'')||E'\n' || coalesce(indpred::text,'')) as key
+    FROM pg_index) sub
+GROUP BY key HAVING count(*)>1
+ORDER BY sum(pg_relation_size(idx)) DESC;
+
+-- acessar psql via cmd
+cd c:\program files (x86)\pgadmin iii\1.14
+psql -u postgres -h 10.2.64.199 -p 5432 -d sistemas_comum
+password
+
+-- verificar replicação (replication)
+SELECT CASE WHEN pg_last_xlog_receive_location() = pg_last_xlog_replay_location() THEN 0 ELSE EXTRACT (EPOCH FROM now() - pg_last_xact_replay_timestamp()) END AS log_delay;
+select now() - pg_last_xact_replay_timestamp() AS replication_delay;
+select * from pg_stat_replication ;
+select pg_is_in_recovery();
+select pg_last_xlog_receive_location();
+select pg_last_xact_replay_timestamp();
+
+-- pause e resume replicação
+psql -c "select pg_xlog_replay_pause()"
+psql -c "select pg_xlog_replay_resume()"
+
+-- lista as tablespaces e o local físico
+select
+	spcname AS "tablespace_name",
+	pg_catalog.pg_tablespace_location(oid) AS "Local"
+from
+	pg_catalog.pg_tablespace
+where
+	spcname not in ('pg_default','pg_global','ts_temp')
+	and pg_catalog.pg_tablespace_location(oid) not like '/u01%'
+order by 2;
+
+-- script move table entre tablespaces
+select 'ALTER TABLE "'||schemaname||'"."'||tablename||'" SET TABLESPACE ts_tab_cad_data;' from pg_tables where schemaname not in ('pg_catalog','information_schema') and tablespace <> 'ts_tab_cad_data' order by schemaname;
+
+-- script move index entre tablespaces
+select 'ALTER INDEX "'||schemaname||'"."'||indexname||'" SET TABLESPACE ts_tab_cad_idx;' from pg_indexes where schemaname not in ('pg_catalog','information_schema') and tablespace <> 'ts_tab_cad_idx' order by schemaname;
+
+-- alterar tablespace de index
+ALTER INDEX IF EXISTS index_name SET TABLESPACE tablespace_name
+ALTER INDEX ALL IN TABLESPACE ts_ead_idx SET TABLESPACE ts_ead;
+
+-- Consulta para saber a tabela no banco pelo OID no local do sistema operacional
+select schemaname,tablename from pg_tables where tablename in (SELECT relname FROM pg_class where OID in('42785065'));
+
+select 
+    n.nspname AS tableschema, 
+    c.relname AS tablename
+from pg_class c
+inner join pg_namespace n on (c.relnamespace = n.oid)
+where c.relfilenode = 141863;
+
+-- Consulta para saber qual tablespace a tabela usa, quando não há a relação na pg_tables
+select oid, * from pg_tablespace where spcname='ts_V7_postge_data'; -- 402964
+select relname from pg_class where pg_relation_file(oid) like '%402964%';
+
+-- Consulta para alterar tabelas
+select
+	tableowner,schemaname,tablename,tablespace
+	-- 'ALTER TABLE '||schemaname||'.'||tablename||' SET TABLESPACE '||tablespace||';'
+from
+	pg_tables
+where
+	tablespace in 
+		(select
+			spcname AS "Name"
+		 from
+			pg_catalog.pg_tablespace
+		 where
+			spcname not in ('pg_default','pg_global','ts_temp')
+			and pg_catalog.pg_tablespace_location(oid) not like '/u01%'
+		)
+order by 4;
+
+-- Consulta para alterar índices
+select
+	schemaname,tablename,indexname,tablespace
+	-- 'ALTER INDEX '||indexname||' SET TABLESPACE '||tablespace||';'
+from
+	pg_indexes
+where
+	tablespace in 
+		(select
+			spcname AS "Name"
+		 from
+			pg_catalog.pg_tablespace
+		 where
+			spcname not in ('pg_default','pg_global','ts_temp')
+			and pg_catalog.pg_tablespace_location(oid) not like '/u01%'
+		)
+order by 4;
+
+-- Verificar as tabelas que estão em determinada tablespace.
+select * from pg_tables
+where tablespace in (SELECT spcname AS "Name"
+FROM pg_catalog.pg_tablespace
+where pg_catalog.pg_tablespace_location(oid) like '%u01%'
+ORDER BY 1);
+
+-- alterar o schema das tabelas (move schema)
+select 'ALTER TABLE "'||schemaname||'"."'||tablename||'" SET SCHEMA dominio;' from pg_tables where schemaname = 'public' order by tablename;
+
+-- Listar constraints
+SELECT con.*
+    FROM pg_catalog.pg_constraint con
+        INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
+        INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
+        WHERE nsp.nspname = 'mi_tab_cad'
+            AND rel.relname = 'tabelao22023_03';
+           
+-- Eliminar constraints (PK)
+select
+/*     kcu.table_schema,
+       kcu.table_name,
+       tco.constraint_name,
+       kcu.ordinal_position as position,
+       kcu.column_name as key_column
+*/
+ 'alter table '||kcu.table_schema||'.'||kcu.table_name||' drop constraint '||tco.constraint_name||';'       
+from information_schema.table_constraints tco
+join information_schema.key_column_usage kcu 
+     on kcu.constraint_name = tco.constraint_name
+     and kcu.constraint_schema = tco.constraint_schema
+     and kcu.constraint_name = tco.constraint_name
+where tco.constraint_type = 'PRIMARY KEY';
+
+-- Procedimento para mapear um volume disponibilizado pela equipe de storage (caso 10.2.64.19):
+* Autenticar-se como root
+* listar o volume que foi disponibilizado
+powermt display dev=all
+* listar o device disponibilizado e checar se está tudo ok
+fdisk -l /dev/emcpowerg
+* Formatar o disco:
+fdisk /dev/emcpowerg
+-> n p 1 default default w
+* Consultar fstab para verificar como os discos estão formatados:
+fstab (ext4 ou ext3)
+* Montar o disco:
+mkfs -t ext3 /dev/emcpowerg
+* Adicionar o disco na fstab:
+vim /etc/fstab
+* Criar o diretório de montagem:
+mkdir /mnt/backup
+* Montar o diretório:
+mount -a
+
+-- script de carga de dados para teste
+do
+$do$
+declare
+ i int;
+begin
+ for i in 1..100000 loop
+  insert into sc_movetablespace.tabela2(id) values (floor(random() * 1000000 + 1)::int);
+ end loop;
+end;
+$do$;
+
+-- Explain para consultas
+* criar arquivo explain.sql
+* Usar: 
+	EXPLAIN (ANALYZE, COSTS, VERBOSE, BUFFERS, FORMAT JSON)
+	SELECT ...
+* Executar
+	psql -qAt -f explain.sql > analyze.json
+* Importar
+	https://tatiyants.com/pev/#/plans/new
+	
+* Existe um outro paralelo que analisa com EXPLAIN ANALYZE BUFFERS
+	https://explain.depesz.com/
+
+-- ver log
+cd pg_log/
+ls -ltr
+-rw-------. 1 postgres postgres 2132248915 set  3 00:00 postgresql-tue.log
+-rw-------. 1 postgres postgres 2117908913 set  4 00:00 postgresql-wed.log
+-rw-------. 1 postgres postgres 1482533345 set  4 16:52 postgresql-thu.log
+
+vi postgresql-thu.log
+
+-- Log com rotação
+watch -n1 "find /u01/pgsql/data/pg_log/ -cmin -1 | xargs tail -n100"
+
+-- mudar senha do usuário postgres (s.o):
+alter user postgres with password 'senha1';
+
+-- psql acessa sql no postgres e listar os databases /l
+
+-- dblink
+deve ser intalado o dblink no banco que será originado a consulta.
+verificar:
+cd /usr/share/postgresql/8.3/
+cd contrib/df -
+more dblink.sql
+
+-- habilitar para a base citada:
+psql -u postgres -d egpe_migracao -f dblink.sql
+
+-- comando para testar a comunicação:
+select * from dblink('hostaddr=10.2.64.198 dbname=administrativo user=pjma0035 password=senha', 'select id_pessoa, nome from comum.pessoa') as teste(id_pessoa integer, nome varchar);
+<< necessário liberar o pg_hba >>
+
+-- Sobre WAL
+http://pgdocptbr.sourceforge.net/pg80/backup-online.html
+
+-- Contar linhas das tabelas dos schemas de um database:
+SELECT 
+    n.nspname AS schema_name, 
+    c.relname AS table_name, 
+    c.reltuples::int AS num_reg 
+FROM pg_class c 
+    LEFT JOIN pg_namespace n ON n.oid = c.relnamespace 
+    LEFT JOIN pg_tablespace t ON t.oid = c.reltablespace 
+WHERE c.relkind = 'r'::char 
+AND nspname NOT IN('information_schema','pg_catalog','pg_toast') 
+ORDER BY n.nspname; 
+
+-- Tamanho dos databases
+select round(sum((pg_database_size(pg_database.datname)))/1024/1024/1024) as tam_gb from pg_database where datname not in ('template0', 'template1', 'postgres','rdsadmin');
+select datname, pg_size_pretty(pg_database_size(pg_database.datname)) from pg_database where datname not in ('template0', 'template1', 'postgres','rdsadmin');
+select datname, pg_database_size(pg_database.datname)/1024/1024 FROM pg_database;
+
+-- tamanho de um schema
+SELECT schema_name, 
+       round(sum(table_size)/1024/1024/1024,2),
+       (sum(table_size) / database_size) * 100
+FROM (
+  SELECT pg_catalog.pg_namespace.nspname as schema_name,
+         pg_relation_size(pg_catalog.pg_class.oid) as table_size,
+         sum(pg_relation_size(pg_catalog.pg_class.oid)) over () as database_size
+  FROM   pg_catalog.pg_class
+     JOIN pg_catalog.pg_namespace ON relnamespace = pg_catalog.pg_namespace.oid
+) t
+GROUP BY schema_name, database_size;
+
+SELECT schema_name, 
+       round(sum(table_size)/1024/1024/1024,2)
+FROM (
+  SELECT pg_catalog.pg_namespace.nspname as schema_name,
+         pg_relation_size(pg_catalog.pg_class.oid) as table_size,
+         sum(pg_relation_size(pg_catalog.pg_class.oid)) over () as database_size
+  FROM   pg_catalog.pg_class
+     JOIN pg_catalog.pg_namespace ON relnamespace = pg_catalog.pg_namespace.oid
+) t
+GROUP BY schema_name, database_size
+order by 2 desc;
+
+-- comando para ver tamanho das tabelas:
+select esquema, tabela, 
+       pg_size_pretty(pg_relation_size(esq_tab)) as tamanho,
+       pg_size_pretty(pg_total_relation_size(esq_tab)) as tamanho_total
+  from (select tablename as tabela,               schemaname as esquema,               schemaname||'.'||tablename as esq_tab
+          from pg_catalog.pg_tables
+         where schemaname not
+            in ('pg_catalog', 'information_schema', 'pg_toast') ) as x
+ order by pg_total_relation_size(esq_tab) desc;
+ 
+ SELECT nspname || '.' || relname AS "relation"
+       ,pg_size_pretty(pg_relation_size(C.oid)) AS "size" 
+ FROM pg_class C 
+     LEFT JOIN pg_namespace N ON (N.oid = C.relnamespace) 
+ WHERE nspname NOT IN ('pg_catalog', 'information_schema') 
+ ORDER BY pg_relation_size(C.oid) DESC 
+ LIMIT 20;
+
+-- contar tabelas por schema
+select count(*) from pg_stat_user_tables
+
+-- vefificar informações das tabelas como vacuum e analyze
+select * from pg_stat_user_tables;
+
+-- select para gerar script de analyze das tabelas sem analyze
+select 'analyze "'||schemaname||'"."'||relname||'";' from pg_stat_user_tables where last_analyze is null and last_autoanalyze is null;
+
+-- select para gerar script de vaccum das tabelas sem vacuum
+select 'vacuum "'||schemaname||'"."'||relname||'";' from pg_stat_user_tables where last_vacuum is null and last_autovacuum is null;
+
+-- alterar execução do autovacuum (vaccum ou analyze) para tabelas específicas
+select * from pg_tables where schemaname = 'tab_cad_14082021' order by 2;
+select 'ALTER TABLE '||schemaname||'.'||tablename||' SET (autovacuum_analyze_scale_factor = 0,autovacuum_analyze_threshold = 10000000);' from pg_tables where schemaname = 'tab_cad_14082021';
+select * from pg_tables where schemaname = 'tab_cad_14082021' order by 2;
+select 'ALTER TABLE '||schemaname||'.'||tablename||' SET (autovacuum_vacuum_scale_factor = 0,autovacuum_vacuum_threshold = 10000000);' from pg_tables where schemaname = 'tab_cad_14082021';
+
+-- encontrar local físico dos objetos pela OID
+select datname,oid from pg_database where datname='postgres';
+select relname,oid,relfilenode from pg_class where oid = 12631;
+O relfilenode é o local físico do objeto.
+
+-- tabelas com OID ativo
+SELECT count(*) FROM pg_catalog.pg_class c, pg_catalog.pg_namespace n, pg_catalog.pg_attribute a
+WHERE c.oid = a.attrelid
+AND NOT a.attisdropped
+AND a.atttypid IN ('pg_catalog.regproc'::pg_catalog.regtype,
+                   'pg_catalog.regprocedure'::pg_catalog.regtype,
+                   'pg_catalog.regoper'::pg_catalog.regtype,
+                   'pg_catalog.regoperator'::pg_catalog.regtype,
+                   'pg_catalog.regconfig'::pg_catalog.regtype,
+                   'pg_catalog.regdictionary'::pg_catalog.regtype)
+AND c.relnamespace = n.oid
+AND n.nspname NOT IN ('pg_catalog', 'information_schema');
+
+select * from pg_class where relhasoids = 't';
+
+-- Change database timezone
+ALTER DATABASE postgres SET timezone TO 'America/Bahia';
+set timezone to 'UTC';
+select now();
+SELECT * FROM pg_timezone_names;
+
+-- instalação do postgresql
+rpm -ihv postgresql90-libs-9.0.4-1PGDG.rhel6.x86_64.rpm
+rpm -ihv postgresql90-9.0.4-1PGDG.rhel6.x86_64.rpm
+rpm -ihv postgresql90-server-9.0.4-1PGDG.rhel6.x86_64.rpm
+
+cd /usr/pgsql-9.0/bin
+initdb -D /caminho
+ou 
+initdb -D /data2/ -E UTF8 --locale=C   (maior compatibilidade)
+
+Mudar senha do usuário postgres (s.o):
+ALTER USER postgres WITH PASSWORD 'senha1';
+
+
+Caso seja necessário executar algum script:
+psql -d zabbix -f schema.sql -U postgres
+initt
+
+-- coletar as senhas criptografadas dos usuários do banco de dados (para colocar no arquivo de senhas pgauth ou análogos)
+select '"'||usename||'" "'||passwd||'"' from pg_shadow where usename = 'postgres';
+
+-- reiniciar o agent do zabbix
+/etc/init.d/zabbix_agentd restart
+
+-- verificar o status do cluster patroni
+patronictl -c /etc/patroni/patroni.yaml list
+
+-- refazer um nó do cluster patroni
+patronictl -c /etc/patroni/patroni.yaml reinit postgresql_cluster srv189
+
+-- Consultas surameta
+select * from vw_bd;
+select * from tb_ambiente_db where lower(servidor) = 'supgpd22';
+select * from tb_usuario where lower(servidor) = 'supasspd02';
+
+select distinct sgbd from tb_ambiente_db;
+select distinct sgbd,versao from tb_ambiente_db where ativo = 't' order by 1;
+select distinct servidor,ip from tb_ambiente_db where ativo ='t' and sgbd = 'Oracle' order by 1;
+select distinct servidor,ip,ambiente,sgbd,versao from tb_ambiente_db where ativo ='t' order by 3,2,1;
+select * from tb_ambiente_db where ativo ='t' and origem = 'Esporte' order by 1;
+select distinct servidor,ip,porta from tb_ambiente_db where ativo ='t' and ambiente = 'Produção' group by servidor,ip,porta order by 1;
+select * from tb_ambiente_db where ativo ='t' and lower(servidor) like '%supgpd02%' order by 1;
+select * from tb_ambiente_db where servidor like '%RHORPD%' order by 1;
+select * from tb_ambiente_db where versao like '%11%' and ativo ='t' order by 1;
+select * from tb_ambiente_db where lower (servidor) like '%rhpg' order by 1;
+select * from tb_ambiente_db where lower (servidor) like '%rhpg%' and banco like 'db%protoco%' order by 1;
+select servidor,ip from tb_ambiente_db where ip in ('10.222.1078') group by servidor,ip;
+select * from tb_ambiente_db where lower(banco) like '%sccm%' order by 1;
+select * from tb_ambiente_db where lower(schema) like '%cister%' order by 1;
+select servidor,ip,ambiente,sgbd,porta,banco from tb_ambiente_db where lower(banco) like '%ccad%' order by 1;
+
+select * from tb_usuario where ativo ='t' and ambiente = 'Produção' order by 1;
+select servidor,so_pwd from tb_usuario where ativo ='t' and ambiente = 'Produção' order by 1;
+select * from tb_usuario where ativo ='t' and servidor like '%06%' order by 1;
+select * from tb_usuario where ativo ='t' and lower(servidor) like '%melpostgres%' order by 1;
+select servidor,ip,so_usr,so_pwd from tb_usuario
+	where ip in ('10.10.0.5','172.18.3.106','172.18.3.196','172.18.3.215','172.18.3.31','172.18.3.46','172.18.3.80');
+
+insert into
+	tb_ambiente_db (servidor,ip,ambiente,origem,so,cpu,ram,swap,sgbd,versao,porta,banco,schema,ativo,observacao)
+	values ('CETARGETDBPD01','10.222.10.177','Produção','MDS','CentOS Linux 7.5',8,32,4,'PostgreSQL','9.4.18',5432,'target','','t','');
+insert into
+	tb_usuario (servidor,ip,ambiente,so_usr,so_pwd,bd_usr,bd_pwd,ativo,observacao)
+	values ('CETARGETDBPD01','10.222.10.177','Produção','root','D3s4V3zV4i','postgres','Mdsdticgss01','t','');
+
+update tb_ambiente_db set ativo ='f' where lower(servidor) = 'rhorpd01';
+update tb_ambiente_db set observacao ='' where lower(servidor) = 'rhorpd03';
+update tb_ambiente_db set servidor='RHORHM01', ip='10.222.14.131', so='Red Hat Enterprise Linux Server 7.9', cpu=32, ram=64, swap=6, versao='18.14.0.0' where lower(servidor) = 'suorhm01';
+update tb_ambiente_db set porta =3050 where lower(servidor) = 'mewsiafi01';
+update tb_ambiente_db set versao = 9.5 where servidor = 'CECITSMARTPD01';
+update tb_usuario set ativo ='f' where lower(servidor) = 'supgpd23';
+
+-- particionamento
+-- ver se o parâmetro está ativo
+show enable_partition_pruning;
+-- Precisa criar tabela particionada antes. Não há como particionar depois
+CREATE TABLE dados.tb_prog_mi_mes_mu2 (
+	mes_ano date NOT NULL,
+	codigo int4 NOT NULL,
+	v1 int4 NULL
+	CONSTRAINT tb_prog_mi_mes_mu2_pkey PRIMARY KEY (codigo, mes_ano)
+)
+partition by range (mes_ano);
+-- Criar partições (O top range precisa estar FORA do range desejado. Ou seja, se os valores forem do ano de 2011, o campo TO precisa ser de 2012 igual abaixo).
+create table dados.tb_prog_mi_mes_mu2_2011 partition of dados.tb_prog_mi_mes_mu2 for values from ('2011-01-01') to ('2012-01-01');
+-- Inserir os dados de outra tabela
+insert into dados.tb_prog_mi_mes_mu2 select * from dados.tb_prog_mi_mes_mu;
+-- Criar o index para o range
+CREATE INDEX tb_prog_mi_mes_mu2_idx ON dados.tb_prog_mi_mes_mu2 USING btree (mes_ano);
+
+-- criar tabela como outra apenas estrutura
+CREATE TABLE tabela2 (LIKE tabela1 INCLUDING DEFAULTS INCLUDING CONSTRAINTS) TABLESPACE ts_tabela2;
+
+_______DBLINK________
+-- cria alias de conexão
+select dblink_connect('conexao','hostaddr=IP port=PORTA dbname=BANCO user=USUARIO password=SENHA');
+-- Insert pelo dblink
+select dblink_exec('conexao','insert into TABELA values (1,'TESTE','01-01-1900');');
+
+Deve ser intalado o dblink no banco que será originado a consulta.
+Verificar:
+cd /usr/share/postgresql/8.3/
+cd contrib/df -
+more dblink.sql
+
+habilitar para a base citada:
+psql -U postgres -d EGPE_MIGRACAO -f dblink.sql
+
+Comando para testar a comunicação:
+select * from dblink('hostaddr=10.2.64.198 dbname=administrativo user=PJMA0035 password=senha', 'select id_pessoa, nome from comum.pessoa') AS teste(id_pessoa integer, nome varchar);
+Necessário liberar o pg_hba.
